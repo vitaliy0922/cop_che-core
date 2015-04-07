@@ -8,23 +8,21 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.api.local;
+package org.eclipse.che.api.auth;
 
-import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.api.user.server.TokenValidator;
 
-import javax.inject.Singleton;
+import org.eclipse.che.commons.user.User;
 
 /**
- * Dummy implementation of {@link org.eclipse.che.api.user.server.TokenValidator}.
- * 
- * @author Ann Shumilova
+ * Provider user by his authentication token.
+ *
+ * @author Sergii Kabashniuk
  */
-@Singleton
-public class DummyTokenValidator implements TokenValidator {
-    /** {@inheritDoc} */
-    @Override
-    public String validateToken(String token) throws ConflictException {
-        return "codenvy@codenvy.com";
-    }
+public interface UserProvider {
+    /**
+     * @param token
+     *         authentication token.
+     * @return user that will be user in request.
+     */
+    User getUser(String token);
 }

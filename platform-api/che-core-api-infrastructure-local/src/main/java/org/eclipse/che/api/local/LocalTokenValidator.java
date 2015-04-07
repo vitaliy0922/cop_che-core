@@ -8,20 +8,23 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.api.auth;
+package org.eclipse.che.api.local;
 
-import org.eclipse.che.api.auth.shared.dto.Credentials;
+import org.eclipse.che.api.core.ConflictException;
+import org.eclipse.che.api.user.server.TokenValidator;
 
-import javax.ws.rs.core.Cookie;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
+import javax.inject.Singleton;
 
 /**
- * @author gazarenkov
+ * Dummy implementation of {@link org.eclipse.che.api.user.server.TokenValidator}.
+ * 
+ * @author Ann Shumilova
  */
-public interface AuthenticationDao {
-
-    Response login(Credentials credentials, Cookie tokenAccessCookie, UriInfo uriInfo) throws AuthenticationException;
-
-    Response logout(String token, Cookie tokenAccessCookie, UriInfo uriInfo);
+@Singleton
+public class LocalTokenValidator implements TokenValidator {
+    /** {@inheritDoc} */
+    @Override
+    public String validateToken(String token) throws ConflictException {
+        return "codenvy@codenvy.com";
+    }
 }
