@@ -55,9 +55,8 @@ import javax.ws.rs.core.SecurityContext;
 public class AuthenticationService {
 
 
-    private final UserDao                  userDao;
-    private final TokenManager             tokenManager;
-    private final TokenInvalidationHandler invalidationHandler;
+    private final UserDao      userDao;
+    private final TokenManager tokenManager;
 
     @Inject
     public AuthenticationService(UserDao userDao,
@@ -138,7 +137,6 @@ public class AuthenticationService {
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
         tokenManager.invalidateToken(token);
-        invalidationHandler.onTokenInvalidated(token);
         return Response.noContent()
                        .header("Set-Cookie",
                                new NewCookie("session-access-key", token, "/", null, null, 0, context.isSecure()) + ";HttpOnly")

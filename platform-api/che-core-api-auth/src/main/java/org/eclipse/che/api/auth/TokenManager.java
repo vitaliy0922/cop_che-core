@@ -47,7 +47,6 @@ public interface TokenManager {
      *
      * @param token
      *         unique token to remove
-     * @return userId associated with token
      */
-    public String invalidateToken(String token);
+    void invalidateToken(String token);
 }
