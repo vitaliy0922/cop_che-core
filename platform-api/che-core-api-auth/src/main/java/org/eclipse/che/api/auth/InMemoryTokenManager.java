@@ -10,10 +10,19 @@
  *******************************************************************************/
 package org.eclipse.che.api.auth;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
+
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Hold information about tokens in memory.
@@ -22,36 +31,59 @@ import java.util.Map;
  */
 @Singleton
 public class InMemoryTokenManager implements TokenManager {
-    private final Map<String, String> tokens;
-    private final TokenGenerator      tokenGenerator;
+    private final Cache<String, String> tokens;
+    private final TokenGenerator        tokenGenerator;
+    private final Map<String, String>   keys;
 
 
     @Inject
-    public InMemoryTokenManager(TokenGenerator tokenGenerator) {
+    public InMemoryTokenManager(final TokenGenerator tokenGenerator, final TokenInvalidationHandler invalidationHandler) {
         this.tokenGenerator = tokenGenerator;
-        this.tokens = new HashMap<>();
+        this.tokens = CacheBuilder.newBuilder().
+                removalListener(new RemovalListener<String, String>() {
+
+                    @Override
+                    public void onRemoval(RemovalNotification<String, String> notification) {
+                        invalidationHandler.onTokenInvalidated(notification.getValue());
+                    }
+                }).expireAfterWrite(3, TimeUnit.DAYS).build();
+        this.keys = tokens.asMap();
     }
 
     @Override
     public String createToken(String userId) {
 
-        String token = tokenGenerator.generate();
-        tokens.put(token, userId);
-        return token;
+
+        try {
+            return tokens.get(userId, new Callable<String>() {
+                @Override
+                public String call() throws Exception {
+                    return tokenGenerator.generate();
+                }
+            });
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e.getLocalizedMessage(), e);
+        }
+
     }
 
     @Override
     public String getUserId(String token) {
-        return tokens.get(token);
+        return keys.get(token);
     }
 
     @Override
     public boolean isValid(String token) {
-        return tokens.containsKey(token);
+        return keys.containsKey(token);
     }
 
     @Override
-    public String invalidateToken(String token) {
-        return tokens.remove(token);
+    public void invalidateToken(String token) {
+        invalidateUserToken(getUserId(token));
+    }
+
+    @Override
+    public void invalidateUserToken(String userId) {
+        tokens.invalidate(userId);
     }
 }

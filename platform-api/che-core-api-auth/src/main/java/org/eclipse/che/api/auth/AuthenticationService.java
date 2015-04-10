@@ -60,12 +60,10 @@ public class AuthenticationService {
 
     @Inject
     public AuthenticationService(UserDao userDao,
-                                 TokenManager tokenManager,
-                                 TokenInvalidationHandler invalidationHandler) {
+                                 TokenManager tokenManager) {
 
         this.userDao = userDao;
         this.tokenManager = tokenManager;
-        this.invalidationHandler = invalidationHandler;
     }
 
     /**

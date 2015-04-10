@@ -49,4 +49,11 @@ public interface TokenManager {
      *         unique token to remove
      */
     void invalidateToken(String token);
+
+    /**
+     * Invalidate all user tokens.
+     *
+     * @param userId
+     */
+    void invalidateUserToken(String userId);
 }
