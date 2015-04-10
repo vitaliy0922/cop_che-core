@@ -543,6 +543,10 @@ public class AccountServiceTest {
         assertEquals(response.getEntity(), "Access denied");
     }
 
+    /**
+     * @deprecated
+     * @throws Exception
+     */
     @Test
     public void shouldNotBeAbleToAddSubscriptionIfNoDataSent() throws Exception {
         prepareSuccessfulSubscriptionAddition();
