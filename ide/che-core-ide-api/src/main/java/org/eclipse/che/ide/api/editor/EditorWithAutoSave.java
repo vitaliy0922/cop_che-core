@@ -8,18 +8,12 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.api.promises.client.js;
+package org.eclipse.che.ide.api.editor;
 
-import com.google.gwt.core.client.JavaScriptObject;
+/**
+ * @author Evgen Vidolob
+ */
+public interface EditorWithAutoSave {
 
-import org.eclipse.che.api.promises.client.PromiseError;
-
-public class RejectFunction extends JavaScriptObject {
-
-    protected RejectFunction() {
-    }
-
-    public final native void apply(PromiseError error) /*-{
-        this(error);
-    }-*/;
+    boolean isAutoSaveEnabled();
 }

@@ -8,30 +8,25 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.api.factory.dto;
+package org.eclipse.che.api.account.shared.dto;
 
-import org.eclipse.che.api.core.factory.FactoryParameter;
 import org.eclipse.che.dto.shared.DTO;
 
-import java.util.List;
-
-import static org.eclipse.che.api.core.factory.FactoryParameter.Obligation.OPTIONAL;
 
 /**
- * Describe IDE look and feel on application closed event.
- *
- * @author Sergii Kabashniuk
+ * @author Oleksii Orel
  */
 @DTO
-public interface OnAppClosed {
+public interface AccountLockDetails {
+    String getAccountId();
 
-    /**
-     * @return actions for current event.
-     */
-    @FactoryParameter(obligation = OPTIONAL)
-    List<Action> getActions();
+    void setAccountId(String accountId);
 
-    void setActions(List<Action> actions);
+    AccountLockDetails withAccountId(String accountId);
 
-    OnAppClosed withActions(List<Action> actions);
+    Boolean isLocked();
+
+    void setLocked(Boolean status);
+
+    AccountLockDetails withLocked(Boolean status);
 }

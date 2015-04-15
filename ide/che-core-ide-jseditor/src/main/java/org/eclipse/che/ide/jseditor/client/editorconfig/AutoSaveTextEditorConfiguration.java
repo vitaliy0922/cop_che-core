@@ -8,14 +8,19 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.ide.jseditor.client.reconciler;
+package org.eclipse.che.ide.jseditor.client.editorconfig;
 
 import org.eclipse.che.ide.jseditor.client.partition.DocumentPartitioner;
+import org.eclipse.che.ide.jseditor.client.reconciler.Reconciler;
+import org.eclipse.che.ide.jseditor.client.reconciler.ReconcilerWithAutoSave;
 
 /**
- * Factory for {@link Reconciler} instances.
+ * @author Evgen Vidolob
  */
-public interface ReconcilerFactory {
+public class AutoSaveTextEditorConfiguration extends DefaultTextEditorConfiguration{
 
-    Reconciler create(String partitioning, DocumentPartitioner partitioner);
+    @Override
+    public Reconciler getReconciler() {
+        return new ReconcilerWithAutoSave(DocumentPartitioner.DEFAULT_CONTENT_TYPE, getPartitioner());
+    }
 }

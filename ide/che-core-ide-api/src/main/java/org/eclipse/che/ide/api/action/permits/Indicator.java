@@ -8,18 +8,22 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.api.promises.client.js;
+package org.eclipse.che.ide.api.action.permits;
 
-import com.google.gwt.core.client.JavaScriptObject;
+import com.google.inject.BindingAnnotation;
 
-import org.eclipse.che.api.promises.client.PromiseError;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class RejectFunction extends JavaScriptObject {
-
-    protected RejectFunction() {
-    }
-
-    public final native void apply(PromiseError error) /*-{
-        this(error);
-    }-*/;
+/**
+ * Used to bind memory indicator action.
+ *
+ * @author Oleksii Orel
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD, ElementType.TYPE})
+@BindingAnnotation
+public @interface Indicator {
 }
