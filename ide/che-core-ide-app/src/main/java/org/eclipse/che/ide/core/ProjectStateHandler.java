@@ -22,6 +22,7 @@ import com.google.web.bindery.event.shared.EventBus;
 import org.eclipse.che.api.project.gwt.client.ProjectServiceClient;
 import org.eclipse.che.api.project.shared.dto.ProjectDescriptor;
 import org.eclipse.che.ide.CoreLocalizationConstant;
+import org.eclipse.che.ide.api.DocumentTitleDecorator;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.app.CurrentProject;
 import org.eclipse.che.ide.api.event.CloseCurrentProjectEvent;
@@ -33,13 +34,14 @@ import org.eclipse.che.ide.api.event.OpenProjectHandler;
 import org.eclipse.che.ide.api.event.ProjectActionEvent;
 import org.eclipse.che.ide.api.event.ProjectDescriptorChangedEvent;
 import org.eclipse.che.ide.api.event.ProjectDescriptorChangedHandler;
+import org.eclipse.che.ide.api.event.RefreshProjectTreeEvent;
 import org.eclipse.che.ide.core.problemDialog.ProjectProblemDialog;
 import org.eclipse.che.ide.projecttype.wizard.presenter.ProjectWizardPresenter;
 import org.eclipse.che.ide.rest.AsyncRequestCallback;
 import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.Unmarshallable;
-import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.ide.util.Config;
+import org.eclipse.che.ide.util.loging.Log;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -67,6 +69,7 @@ public class ProjectStateHandler implements Component, OpenProjectHandler, Close
     private final ProjectWizardPresenter   projectWizardPresenter;
     private final DtoUnmarshallerFactory   dtoUnmarshallerFactory;
     private final CoreLocalizationConstant constant;
+    private final DocumentTitleDecorator   documentTitleDecorator;
 
     @Inject
     public ProjectStateHandler(AppContext appContext,
@@ -74,13 +77,15 @@ public class ProjectStateHandler implements Component, OpenProjectHandler, Close
                                ProjectServiceClient projectServiceClient,
                                ProjectWizardPresenter projectWizardPresenter,
                                CoreLocalizationConstant constant,
-                               DtoUnmarshallerFactory dtoUnmarshallerFactory) {
+                               DtoUnmarshallerFactory dtoUnmarshallerFactory,
+                               DocumentTitleDecorator documentTitleDecorator) {
         this.eventBus = eventBus;
         this.appContext = appContext;
         this.projectServiceClient = projectServiceClient;
         this.projectWizardPresenter = projectWizardPresenter;
         this.dtoUnmarshallerFactory = dtoUnmarshallerFactory;
         this.constant = constant;
+        this.documentTitleDecorator = documentTitleDecorator;
     }
 
     @Override
@@ -177,7 +182,7 @@ public class ProjectStateHandler implements Component, OpenProjectHandler, Close
         if (currentProject != null) {
             ProjectDescriptor closedProject = currentProject.getRootProject();
 
-            Document.get().setTitle(constant.codenvyTabTitle());
+            Document.get().setTitle(documentTitleDecorator.getDocumentTitle());
             rewriteBrowserHistory(null);
 
             // notify all listeners about current project has been closed
@@ -189,7 +194,7 @@ public class ProjectStateHandler implements Component, OpenProjectHandler, Close
     private void openProject(ProjectDescriptor project) {
         appContext.setCurrentProject(new CurrentProject(project));
 
-        Document.get().setTitle(constant.codenvyTabTitle(project.getName()));
+        Document.get().setTitle(documentTitleDecorator.getDocumentTitle(project.getName()));
         rewriteBrowserHistory(project.getName());
 
         // notify all listeners about opening project
@@ -197,9 +202,13 @@ public class ProjectStateHandler implements Component, OpenProjectHandler, Close
     }
 
     private void openProblemProject(final ProjectDescriptor project) {
-        ProjectProblemDialog dialog =
-                new ProjectProblemDialog(constant.projectProblemTitle(), constant.projectProblemMessage(), getAskHandler(project));
+        ProjectProblemDialog dialog = new ProjectProblemDialog(constant.projectProblemTitle(),
+                                                               constant.projectProblemMessage(),
+                                                               getAskHandler(project));
+
         dialog.show();
+
+        eventBus.fireEvent(new RefreshProjectTreeEvent());
     }
 
     private ProjectProblemDialog.AskHandler getAskHandler(final ProjectDescriptor project) {

@@ -10,6 +10,11 @@
  *******************************************************************************/
 package org.eclipse.che.api.factory;
 
+import com.google.common.collect.ImmutableMap;
+import com.jayway.restassured.response.Response;
+
+import org.eclipse.che.api.account.server.dao.AccountDao;
+import org.eclipse.che.api.account.server.dao.Member;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.rest.ApiExceptionMapper;
@@ -19,7 +24,6 @@ import org.eclipse.che.api.factory.dto.Author;
 import org.eclipse.che.api.factory.dto.Button;
 import org.eclipse.che.api.factory.dto.ButtonAttributes;
 import org.eclipse.che.api.factory.dto.Factory;
-import org.eclipse.che.api.factory.dto.Workspace;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.shared.dto.ImportSourceDescriptor;
 import org.eclipse.che.api.project.shared.dto.NewProject;
@@ -29,9 +33,6 @@ import org.eclipse.che.commons.json.JsonHelper;
 import org.eclipse.che.commons.lang.Pair;
 import org.eclipse.che.commons.user.UserImpl;
 import org.eclipse.che.dto.server.DtoFactory;
-import com.google.common.collect.ImmutableMap;
-import com.jayway.restassured.response.Response;
-
 import org.everrest.assured.EverrestJetty;
 import org.everrest.assured.JettyHttpServer;
 import org.everrest.core.Filter;
@@ -67,6 +68,7 @@ import static javax.ws.rs.core.Response.Status;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anySetOf;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -85,6 +87,9 @@ public class FactoryServiceTest {
 
     @Mock
     private FactoryStore factoryStore;
+
+    @Mock
+    private AccountDao accountDao;
 
     @Mock
     private FactoryCreateValidator createValidator;
@@ -109,12 +114,15 @@ public class FactoryServiceTest {
         factoryBuilder = spy(new FactoryBuilder(new SourceProjectParametersValidator()));
         factoryService = new FactoryService("https://codenvy.com/api",
                                             factoryStore,
+                                            accountDao,
                                             createValidator,
                                             acceptValidator,
                                             editValidator,
                                             new LinksHelper(),
                                             factoryBuilder,
                                             projectManager);
+
+        when(accountDao.getByMember(anyString())).thenReturn(Arrays.asList(new Member().withRoles(Arrays.asList("account/owner"))));
     }
 
     @Filter
@@ -146,7 +154,7 @@ public class FactoryServiceTest {
                                              .withName("pname"));
 
         factory.setId(CORRECT_FACTORY_ID);
-        Factory expected = dto.clone(factory).withWorkspace(dto.createDto(Workspace.class).withType("temp").withLocation("owner"));
+        Factory expected = dto.clone(factory);
 
         when(factoryStore.getFactory(CORRECT_FACTORY_ID)).thenReturn(factory);
         when(factoryStore.getFactoryImages(CORRECT_FACTORY_ID, null)).thenReturn(Collections.<FactoryImage>emptySet());
@@ -874,7 +882,6 @@ public class FactoryServiceTest {
     }
 
 
-
     /**
      * Checks that the user can update an existing factory
      * @throws Exception
@@ -884,21 +891,21 @@ public class FactoryServiceTest {
 
         // given
         Factory beforeFactory = dto.createDto(Factory.class)
-                             .withV("2.0")
-                             .withSource(dto.createDto(Source.class)
-                                            .withProject(dto.createDto(ImportSourceDescriptor.class)
-                                                            .withType("git")
-                                                            .withLocation(
-                                                                    "http://github.com/codenvy/platform-api.git")))
-                            .withCreator(dto.createDto(Author.class).withCreated(System.currentTimeMillis()));
-        beforeFactory.setId(CORRECT_FACTORY_ID);
-        Factory afterFactory = dto.createDto(Factory.class)
                                    .withV("2.0")
                                    .withSource(dto.createDto(Source.class)
                                                   .withProject(dto.createDto(ImportSourceDescriptor.class)
                                                                   .withType("git")
                                                                   .withLocation(
-                                                                          "http://github.com/codenvy/platform-api2.git")));
+                                                                          "http://github.com/codenvy/platform-api.git")))
+                                   .withCreator(dto.createDto(Author.class).withCreated(System.currentTimeMillis()));
+        beforeFactory.setId(CORRECT_FACTORY_ID);
+        Factory afterFactory = dto.createDto(Factory.class)
+                                  .withV("2.0")
+                                  .withSource(dto.createDto(Source.class)
+                                                 .withProject(dto.createDto(ImportSourceDescriptor.class)
+                                                                 .withType("git")
+                                                                 .withLocation(
+                                                                         "http://github.com/codenvy/platform-api2.git")));
 
 
         when(factoryStore.getFactory(CORRECT_FACTORY_ID)).thenReturn(beforeFactory);
@@ -907,8 +914,8 @@ public class FactoryServiceTest {
         Response response =
                 given().auth().basic(JettyHttpServer.ADMIN_USER_NAME, JettyHttpServer.ADMIN_USER_PASSWORD).//
                         contentType("application/json").
-                        body(JsonHelper.toJson(afterFactory)).
-                        when().//
+                               body(JsonHelper.toJson(afterFactory)).
+                               when().//
                         put("/private" + SERVICE_PATH + "/" + CORRECT_FACTORY_ID);
 
 
@@ -933,12 +940,12 @@ public class FactoryServiceTest {
 
         // given
         Factory testFactory = dto.createDto(Factory.class)
-                                  .withV("2.0")
-                                  .withSource(dto.createDto(Source.class)
-                                                 .withProject(dto.createDto(ImportSourceDescriptor.class)
-                                                                 .withType("git")
-                                                                 .withLocation(
-                                                                         "http://github.com/codenvy/platform-api.git")));
+                                 .withV("2.0")
+                                 .withSource(dto.createDto(Source.class)
+                                                .withProject(dto.createDto(ImportSourceDescriptor.class)
+                                                                .withType("git")
+                                                                .withLocation(
+                                                                        "http://github.com/codenvy/platform-api.git")));
 
 
         // when, then
@@ -955,7 +962,6 @@ public class FactoryServiceTest {
                      format("Factory with id %s does not exist.", ILLEGAL_FACTORY_ID));
 
     }
-
 
 
     /**
@@ -1044,12 +1050,12 @@ public class FactoryServiceTest {
                                       .withCreator(dto.createDto(Author.class).withAccountId("testorg"));
 
 
-        when(factoryStore.findByAttribute(Pair.of("orgid", "testorg"))).thenReturn(
+        when(factoryStore.findByAttribute(Pair.of("creator.accountid", "testorg"))).thenReturn(
                 Arrays.asList(factory, factory));
 
         // when
         Response response = given().auth().basic(JettyHttpServer.ADMIN_USER_NAME, JettyHttpServer.ADMIN_USER_PASSWORD).
-                when().get("/private" + SERVICE_PATH + "/find?accountid=testorg");
+                when().get("/private" + SERVICE_PATH + "/find?creator.accountid=testorg");
 
         // then
         assertEquals(response.getStatusCode(), 200);
