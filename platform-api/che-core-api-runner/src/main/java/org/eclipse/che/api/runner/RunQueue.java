@@ -244,28 +244,35 @@ public class RunQueue {
                                               new ThreadFactoryBuilder().setNameFormat("RunQueue-").setDaemon(true).build()) {
                 @Override
                 protected void afterExecute(Runnable runnable, Throwable error) {
-                    super.afterExecute(runnable, error);
-                    if (runnable instanceof InternalRunTask) {
-                        final InternalRunTask internalRunTask = (InternalRunTask)runnable;
-                        if (error == null) {
-                            try {
-                                internalRunTask.get();
-                            } catch (CancellationException e) {
-                                LOG.warn("Task {}, workspace '{}', project '{}' was cancelled",
-                                         internalRunTask.id, internalRunTask.workspace, internalRunTask.project);
-                                error = e;
-                            } catch (ExecutionException e) {
-                                error = e.getCause();
-                                logError(internalRunTask, error == null ? e : error);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
+                    boolean isInterrupted = Thread.interrupted();
+                    try {
+                        super.afterExecute(runnable, error);
+                        if (runnable instanceof InternalRunTask) {
+                            final InternalRunTask internalRunTask = (InternalRunTask)runnable;
+                            if (error == null) {
+                                try {
+                                    internalRunTask.get();
+                                } catch (CancellationException e) {
+                                    LOG.warn("Task {}, workspace '{}', project '{}' was cancelled",
+                                             internalRunTask.id, internalRunTask.workspace, internalRunTask.project);
+                                    error = e;
+                                } catch (ExecutionException e) {
+                                    error = e.getCause();
+                                    logError(internalRunTask, error == null ? e : error);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            } else {
+                                logError(internalRunTask, error);
                             }
-                        } else {
-                            logError(internalRunTask, error);
+                            if (error != null) {
+                                eventService.publish(RunnerEvent.errorEvent(internalRunTask.id, internalRunTask.workspace,
+                                                                            internalRunTask.project, error.getMessage()));
+                            }
                         }
-                        if (error != null) {
-                            eventService.publish(RunnerEvent.errorEvent(internalRunTask.id, internalRunTask.workspace,
-                                                                        internalRunTask.project, error.getMessage()));
+                    } finally {
+                        if (isInterrupted) {
+                            Thread.currentThread().interrupt();
                         }
                     }
                 }
@@ -544,7 +551,7 @@ public class RunQueue {
         final InternalRunTask future = new InternalRunTask(ThreadLocalPropagateContext.wrap(callable), id, workspace, project);
         request.setId(id); // for getting callback events from remote runner
         final RunQueueTask task = new RunQueueTask(id, request, maxWaitingTimeMillis, future, buildTaskHolder,
-                                                   serviceContext.getServiceUriBuilder());
+                                                   eventService, serviceContext.getServiceUriBuilder());
         tasks.put(id, task);
         eventService.publish(RunnerEvent.queueStartedEvent(id, workspace, project));
         executor.execute(future);
@@ -1271,13 +1278,15 @@ public class RunQueue {
                 case STOPPED:
                 case ERROR:
                 case RUN_TASK_QUEUE_TIME_EXCEEDED:
+                case CANCELED:
                     try {
                         final ChannelBroadcastMessage bm = new ChannelBroadcastMessage();
                         String workspaceId = event.getWorkspace();
                         bm.setChannel(String.format("workspace:resources:%s", workspaceId));
 
                         final ResourcesDescriptor resourcesDescriptor = DtoFactory.getInstance().createDto(ResourcesDescriptor.class)
-                                                                            .withUsedMemory(String.valueOf(getUsedMemory(workspaceId)));
+                                                                                  .withUsedMemory(
+                                                                                          String.valueOf(getUsedMemory(workspaceId)));
                         bm.setBody(DtoFactory.getInstance().toJson(resourcesDescriptor));
                         WSConnectionContext.sendMessage(bm);
                     } catch (Exception e) {
@@ -1316,6 +1325,7 @@ public class RunQueue {
                     case PREPARATION_STARTED:
                     case STARTED:
                     case STOPPED:
+                    case CANCELED:
                     case ERROR:
                         bm.setChannel(String.format("runner:status:%d", id));
                         try {
