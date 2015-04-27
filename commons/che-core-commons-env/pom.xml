@@ -16,7 +16,7 @@
     <parent>
         <artifactId>che-core-commons-parent</artifactId>
         <groupId>org.eclipse.che.core</groupId>
-        <version>3.9.0-SNAPSHOT</version>
+        <version>3.10.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-core-commons-env</artifactId>
     <packaging>jar</packaging>
@@ -25,7 +25,7 @@
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-commons-lang</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <!-- Test dependencies -->
         <dependency>

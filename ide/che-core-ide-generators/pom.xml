@@ -16,7 +16,7 @@
     <parent>
         <artifactId>che-core-ide-parent</artifactId>
         <groupId>org.eclipse.che.core</groupId>
-        <version>3.9.0-SNAPSHOT</version>
+        <version>3.10.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-core-ide-generators</artifactId>
     <packaging>jar</packaging>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-ide-api</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>
