@@ -53,7 +53,7 @@ public class AutoLoginAuthorizationFilter extends DefaultAuthorizationFilter {
         String existedToken = extractor.getToken(httpServletRequest);
         if (existedToken == null || !tokenManager.isValid(existedToken)) {
             try {
-                String token = tokenManager.createToken(userDao.getByAlias("codenvy@codenvy.com").getId());
+                String token = tokenManager.createToken(userDao.getByAlias("che@eclipse.org").getId());
 
                 Cookie cookie = new Cookie("session-access-key", token);
                 cookie.setPath("/");

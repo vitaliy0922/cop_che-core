@@ -80,14 +80,14 @@ public class SessionUserProvider implements UserProvider {
         checkNotNull(token, "Token can't be null");
         HttpSession session = sessionStore.getSession(token);
         if (session != null) {
-            User user = (User)session.getAttribute("codenvy_user");
+            User user = (User)session.getAttribute("che_user");
             if (user == null) {
                 String userId = tokenManager.getUserId(token);
                 if (userId != null) {
                     try {
                         org.eclipse.che.api.user.server.dao.User daoUser = userDao.getById(userId);
                         user = new AuthenticatedUser(daoUser.getEmail(), daoUser.getId(), token);
-                        session.setAttribute("codenvy_user", new AuthenticatedUser(daoUser.getEmail(), daoUser.getId(), token));
+                        session.setAttribute("che_user", new AuthenticatedUser(daoUser.getEmail(), daoUser.getId(), token));
                         return user;
                     } catch (NotFoundException | ServerException e) {
                         LOG.error(e.getLocalizedMessage(), e);
