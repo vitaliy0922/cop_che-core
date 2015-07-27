@@ -41,7 +41,7 @@ public class EnvironmentId {
         }
     }
 
-    private static final Pattern ENV_FQN_PATTERN = Pattern.compile("(system|project):/(.*)?/(.+)?");
+    private static final Pattern ENV_FQN_PATTERN = Pattern.compile("(system|project):(/.*)?/(.+)?");
 
     private final Scope  scope;
     private final String category;
@@ -110,10 +110,8 @@ public class EnvironmentId {
 
     public String getFqn() {
         String category = this.category;
-        if (category == null) {
-            category = "";
-        }
-        return scope + ":/" + category + "/" + name;
+        String fqn = scope + ":/";
+        return category != null && !category.isEmpty() ? fqn + category + "/" + name : fqn + name;
     }
 
     @Override
@@ -132,6 +130,10 @@ public class EnvironmentId {
      * represent runner environments as hierarchically-organized system.
      */
     public String getCategory() {
+        if (category.startsWith("/")) {
+            return category.substring(1);
+        }
+
         return category;
     }
 

@@ -16,7 +16,7 @@
     <parent>
         <artifactId>che-core-api-parent</artifactId>
         <groupId>org.eclipse.che.core</groupId>
-        <version>3.9.0-SNAPSHOT</version>
+        <version>3.11.5-SNAPSHOT</version>
     </parent>
     <artifactId>che-core-api-runner</artifactId>
     <packaging>jar</packaging>
@@ -33,27 +33,27 @@
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-builder</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-core</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-dto</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-project</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-workspace</artifactId>
-            <version>${che.core.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.everrest</groupId>
@@ -64,6 +64,12 @@
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
             <version>${javax.servlet.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.websocket</groupId>
+            <artifactId>javax.websocket-api</artifactId>
+            <version>${javax.websocket.api.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -113,7 +119,7 @@
             <plugin>
                 <groupId>org.eclipse.che.core</groupId>
                 <artifactId>che-core-api-dto-maven-plugin</artifactId>
-                <version>${che.core.version}</version>
+                <version>${project.version}</version>
                 <executions>
                     <execution>
                         <phase>process-sources</phase>
@@ -126,17 +132,17 @@
                     <dependency>
                         <groupId>org.eclipse.che.core</groupId>
                         <artifactId>che-core-api-core</artifactId>
-                        <version>${che.core.version}</version>
+                        <version>${project.version}</version>
                     </dependency>
                     <dependency>
                         <groupId>org.eclipse.che.core</groupId>
                         <artifactId>che-core-api-project</artifactId>
-                        <version>${che.core.version}</version>
+                        <version>${project.version}</version>
                     </dependency>
                     <dependency>
                         <groupId>org.eclipse.che.core</groupId>
                         <artifactId>che-core-api-runner</artifactId>
-                        <version>${che.core.version}</version>
+                        <version>${project.version}</version>
                     </dependency>
                 </dependencies>
                 <configuration>

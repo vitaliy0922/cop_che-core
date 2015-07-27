@@ -47,11 +47,11 @@ public class LocalProfileDaoImpl implements UserProfileDao {
     private final ReadWriteLock        lock;
 
     @Inject
-    public LocalProfileDaoImpl(@Nullable @Named("profile.store_location") String dirPath) {
+    public LocalProfileDaoImpl(@Nullable @Named("user.local.db") String dirPath) {
         if (dirPath == null || dirPath.isEmpty()) {
-            storageFile = new File(System.getProperty("java.io.tmpdir"), "ProfileStorage.json");
+            storageFile = new File(System.getProperty("java.io.tmpdir"), "profile.json");
         } else {
-            storageFile = new File(dirPath, "ProfileStorage.json");
+            storageFile = new File(dirPath, "profile.json");
         }
         gson = new Gson();
         profiles = new HashMap<>();
@@ -86,8 +86,8 @@ public class LocalProfileDaoImpl implements UserProfileDao {
             // Add default entry if file doesn't exist or invalid or empty.
             if (profiles.isEmpty()) {
                 final Map<String, String> attributes = new HashMap<>(2);
-                attributes.put("First Name", "Codenvy");
-                attributes.put("Last Name", "Codenvy");
+                attributes.put("firstName", "Che");
+                attributes.put("lastName", "Codenvy");
                 Profile profile = new Profile().withId("codenvy")
                                                .withUserId("codenvy")
                                                .withAttributes(attributes);

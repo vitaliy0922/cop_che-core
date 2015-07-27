@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.che.api.runner;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.eclipse.che.api.builder.BuildStatus;
@@ -66,12 +68,15 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -110,7 +115,7 @@ public class RunQueue {
 
     private static final long PROCESS_CLEANER_PERIOD = TimeUnit.MINUTES.toMillis(1);
 
-    private static final int DEFAULT_MAX_MEMORY_SIZE = 512;
+    private static final int DEFAULT_MAX_MEMORY_SIZE = 1000;
 
     private static final int APPLICATION_CHECK_URL_TIMEOUT = 2000;
     private static final int APPLICATION_CHECK_URL_COUNT   = 30;
@@ -123,9 +128,6 @@ public class RunQueue {
     private final ConcurrentMap<Long, RunQueueTask>               tasks;
     private final int                                             defMemSize;
     private final EventService                                    eventService;
-    private final String                                          baseWorkspaceApiUrl;
-    private final String                                          baseProjectApiUrl;
-    private final String                                          baseBuilderApiUrl;
     private final int                                             defLifetime;
     private final long                                            maxWaitingTimeMillis;
     private final AtomicBoolean                                   started;
@@ -167,23 +169,6 @@ public class RunQueue {
     long checkBuildResultPeriod     = CHECK_BUILD_RESULT_PERIOD;
 
     /**
-     * @param baseWorkspaceApiUrl
-     *         workspace api url. Configuration parameter that points to the Workspace API location. If such parameter isn't specified than
-     *         use the same base URL as runner API has, e.g. suppose we have runner API at URL: <i>http://codenvy
-     *         .com/api/runner/my_workspace</i>,
-     *         in this case base URL is <i>http://codenvy.com/api</i> so we will try to find workspace API at URL:
-     *         <i>http://codenvy.com/api/workspace/my_workspace</i>
-     * @param baseProjectApiUrl
-     *         project api url. Configuration parameter that points to the Project API location. If such parameter isn't specified than use
-     *         the same base URL as runner API has, e.g. suppose we have runner API at URL: <i>http://codenvy
-     *         .com/api/runner/my_workspace</i>,
-     *         in this case base URL is <i>http://codenvy.com/api</i> so we will try to find project API at URL:
-     *         <i>http://codenvy.com/api/project/my_workspace</i>
-     * @param baseBuilderApiUrl
-     *         builder api url. Configuration parameter that points to the base Builder API location. If such parameter isn't specified
-     *         than use the same base URL as runner API has, e.g. suppose we have runner API at URL:
-     *         <i>http://codenvy.com/api/runner/my_workspace</i>, in this case base URL is <i>http://codenvy.com/api</i> so we will try to
-     *         find builder API at URL: <i>http://codenvy.com/api/builder/my_workspace</i>.
      * @param defMemSize
      *         default size of memory for application in megabytes. This value used is there is nothing specified in properties of project.
      * @param maxWaitingTime
@@ -193,18 +178,12 @@ public class RunQueue {
      */
     @Inject
     @SuppressWarnings("unchecked")
-    public RunQueue(@Nullable @Named("workspace.base_api_url") String baseWorkspaceApiUrl,
-                    @Nullable @Named("project.base_api_url") String baseProjectApiUrl,
-                    @Nullable @Named("builder.base_api_url") String baseBuilderApiUrl,
-                    @Named(Constants.APP_DEFAULT_MEM_SIZE) int defMemSize,
+    public RunQueue(@Named(Constants.APP_DEFAULT_MEM_SIZE) int defMemSize,
                     @Named(Constants.WAITING_TIME) int maxWaitingTime,
                     @Named(Constants.APP_LIFETIME) int defLifetime,
                     @Named(Constants.APP_CLEANUP_TIME) int appCleanupTime,
                     RunnerSelectionStrategy runnerSelector,
                     EventService eventService) {
-        this.baseWorkspaceApiUrl = baseWorkspaceApiUrl;
-        this.baseProjectApiUrl = baseProjectApiUrl;
-        this.baseBuilderApiUrl = baseBuilderApiUrl;
         this.defMemSize = defMemSize;
         this.eventService = eventService;
         this.maxWaitingTimeMillis = TimeUnit.SECONDS.toMillis(maxWaitingTime);
@@ -241,31 +220,38 @@ public class RunQueue {
     public void start() {
         if (started.compareAndSet(false, true)) {
             executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(),
-                                              new ThreadFactoryBuilder().setNameFormat("RunQueue-").setDaemon(true).build()) {
+                                              new ThreadFactoryBuilder().setNameFormat("RunQueue-[%d]").setDaemon(true).build()) {
                 @Override
                 protected void afterExecute(Runnable runnable, Throwable error) {
-                    super.afterExecute(runnable, error);
-                    if (runnable instanceof InternalRunTask) {
-                        final InternalRunTask internalRunTask = (InternalRunTask)runnable;
-                        if (error == null) {
-                            try {
-                                internalRunTask.get();
-                            } catch (CancellationException e) {
-                                LOG.warn("Task {}, workspace '{}', project '{}' was cancelled",
-                                         internalRunTask.id, internalRunTask.workspace, internalRunTask.project);
-                                error = e;
-                            } catch (ExecutionException e) {
-                                error = e.getCause();
-                                logError(internalRunTask, error == null ? e : error);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
+                    boolean isInterrupted = Thread.interrupted();
+                    try {
+                        super.afterExecute(runnable, error);
+                        if (runnable instanceof InternalRunTask) {
+                            final InternalRunTask internalRunTask = (InternalRunTask)runnable;
+                            if (error == null) {
+                                try {
+                                    internalRunTask.get();
+                                } catch (CancellationException e) {
+                                    LOG.warn("Task {}, workspace '{}', project '{}' was cancelled",
+                                             internalRunTask.id, internalRunTask.workspace, internalRunTask.project);
+                                    error = e;
+                                } catch (ExecutionException e) {
+                                    error = e.getCause();
+                                    logError(internalRunTask, error == null ? e : error);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            } else {
+                                logError(internalRunTask, error);
                             }
-                        } else {
-                            logError(internalRunTask, error);
+                            if (error != null) {
+                                eventService.publish(RunnerEvent.errorEvent(internalRunTask.id, internalRunTask.workspace,
+                                                                            internalRunTask.project, error.getMessage()));
+                            }
                         }
-                        if (error != null) {
-                            eventService.publish(RunnerEvent.errorEvent(internalRunTask.id, internalRunTask.workspace,
-                                                                        internalRunTask.project, error.getMessage()));
+                    } finally {
+                        if (isInterrupted) {
+                            Thread.currentThread().interrupt();
                         }
                     }
                 }
@@ -281,7 +267,7 @@ public class RunQueue {
                     }
                 }
             };
-            cleanScheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("RunQueueScheduler-")
+            cleanScheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("RunQueueScheduler-%d")
                                                                                                   .setDaemon(true).build());
             cleanScheduler.scheduleAtFixedRate(new Runnable() {
                 @Override
@@ -351,13 +337,13 @@ public class RunQueue {
             eventService.subscribe(new AnalyticsMessenger());
 
             if (slaves.length > 0) {
-                executor.execute(new RegisterSlaveRunnerTask(slaves, null));
+                executor.execute(ThreadLocalPropagateContext.wrap(new RegisterSlaveRunnerTask(slaves, null)));
             }
             if (slavesPaid.length > 0) {
-                executor.execute(new RegisterSlaveRunnerTask(slavesPaid, "paid"));
+                executor.execute(ThreadLocalPropagateContext.wrap(new RegisterSlaveRunnerTask(slavesPaid, "paid")));
             }
             if (slavesAlwaysOn.length > 0) {
-                executor.execute(new RegisterSlaveRunnerTask(slavesAlwaysOn, "always_on"));
+                executor.execute(ThreadLocalPropagateContext.wrap(new RegisterSlaveRunnerTask(slavesAlwaysOn, "always_on")));
             }
         } else {
             throw new IllegalStateException("Already started");
@@ -418,14 +404,14 @@ public class RunQueue {
                                              .withProjectDescriptor(projectDescriptor)
                                              .withUserId(user == null ? "" : user.getId())
                                              .withUserToken(getUserToken());
-        String environmentId = runOptions.getEnvironmentId();
+        String notParsedEnvironmentId = runOptions.getEnvironmentId();
         // Project configuration for runner.
         final RunnersDescriptor runners = projectDescriptor.getRunners();
-        if (environmentId == null) {
+        if (notParsedEnvironmentId == null) {
             if (runners != null) {
-                environmentId = runners.getDefault();
+                notParsedEnvironmentId = runners.getDefault();
             }
-            if (environmentId == null) {
+            if (notParsedEnvironmentId == null) {
                 throw new RunnerException("Name of runner environment is not specified, be sure corresponded property of project is set.");
             }
         }
@@ -434,7 +420,7 @@ public class RunQueue {
         if (infra == null) {
             infra = "community";
         }
-        final EnvironmentId parsedEnvironmentId = EnvironmentId.parse(environmentId);
+        final EnvironmentId parsedEnvironmentId = EnvironmentId.parse(notParsedEnvironmentId);
         final List<RemoteRunner> matchedRunners = new LinkedList<>();
         switch (parsedEnvironmentId.getScope()) {
             // This may be fixed in next versions but for now use following agreements.
@@ -465,7 +451,7 @@ public class RunQueue {
                 }
                 if (matchedRunners.isEmpty()) {
                     throw new RunnerException(String.format("Runner environment '%s' is not available for workspace '%s' on infra '%s'.",
-                                                            environmentId, workspace, infra));
+                                                            notParsedEnvironmentId, workspace, infra));
                 }
                 break;
             case project:
@@ -481,7 +467,7 @@ public class RunQueue {
         }
 
         // Get runner configuration.
-        final RunnerConfiguration runnerConfig = runners == null ? null : runners.getConfigs().get(environmentId);
+        final RunnerConfiguration runnerConfig = runners == null ? null : runners.getConfigs().get(notParsedEnvironmentId);
         int mem = runOptions.getMemorySize();
         // If nothing is set in user request try to determine memory size for application.
         if (mem <= 0) {
@@ -543,7 +529,13 @@ public class RunQueue {
         final Long id = sequence.getAndIncrement();
         final InternalRunTask future = new InternalRunTask(ThreadLocalPropagateContext.wrap(callable), id, workspace, project);
         request.setId(id); // for getting callback events from remote runner
-        final RunQueueTask task = new RunQueueTask(id, request, maxWaitingTimeMillis, future, buildTaskHolder,
+        final RunQueueTask task = new RunQueueTask(id,
+                                                   request,
+                                                   maxWaitingTimeMillis,
+                                                   future,
+                                                   buildTaskHolder,
+                                                   eventService,
+                                                   notParsedEnvironmentId,
                                                    serviceContext.getServiceUriBuilder());
         tasks.put(id, task);
         eventService.publish(RunnerEvent.queueStartedEvent(id, workspace, project));
@@ -586,9 +578,7 @@ public class RunQueue {
     // Switched to default for test.
     // private
     WorkspaceDescriptor getWorkspaceDescriptor(String workspace, ServiceContext serviceContext) throws RunnerException {
-        final UriBuilder baseWorkspaceUriBuilder = baseWorkspaceApiUrl == null || baseWorkspaceApiUrl.isEmpty()
-                                                   ? serviceContext.getBaseUriBuilder()
-                                                   : UriBuilder.fromUri(baseWorkspaceApiUrl);
+        final UriBuilder baseWorkspaceUriBuilder = serviceContext.getBaseUriBuilder();
         final String workspaceUrl = baseWorkspaceUriBuilder.path(WorkspaceService.class)
                                                            .path(WorkspaceService.class, "getById")
                                                            .build(workspace).toString();
@@ -604,9 +594,7 @@ public class RunQueue {
     // Switched to default for test.
     // private
     ProjectDescriptor getProjectDescriptor(String workspace, String project, ServiceContext serviceContext) throws RunnerException {
-        final UriBuilder baseProjectUriBuilder = baseProjectApiUrl == null || baseProjectApiUrl.isEmpty()
-                                                 ? serviceContext.getBaseUriBuilder()
-                                                 : UriBuilder.fromUri(baseProjectApiUrl);
+        final UriBuilder baseProjectUriBuilder = serviceContext.getBaseUriBuilder();
         final String projectUrl = baseProjectUriBuilder.path(ProjectService.class)
                                                        .path(ProjectService.class, "getProject")
                                                        .build(workspace, project.startsWith("/") ? project.substring(1) : project)
@@ -636,7 +624,32 @@ public class RunQueue {
                 }
             }
         }
-        return runnerList;
+        return runnerList == null ? null : FluentIterable.from(runnerList).filter(new Predicate<RemoteRunner>() {
+            private final Map<String, Boolean> serverAvailability = new HashMap<>();
+
+            private boolean isAvailable(String serverUrl) throws ServerException {
+                Boolean result = serverAvailability.get(serverUrl);
+                if (result == null) {
+                    RemoteRunnerServer runnerServer = runnerServers.get(serverUrl);
+                    if (runnerServer == null) {
+                        throw new ServerException("Server with id " + serverUrl + " is not found");
+                    }
+                    result = runnerServer.isAvailable();
+                    serverAvailability.put(serverUrl, result);
+                }
+                return result;
+            }
+
+            @Override
+            public boolean apply(@Nullable RemoteRunner input) {
+                try {
+                    return isAvailable(input.getBaseUrl());
+                } catch (ServerException e) {
+                    LOG.warn(e.getLocalizedMessage());
+                }
+                return false;
+            }
+        }).toSet();
     }
 
     // Switched to default for test.
@@ -730,9 +743,7 @@ public class RunQueue {
     // Switched to default for test.
     // private
     RemoteServiceDescriptor getBuilderServiceDescriptor(String workspace, ServiceContext serviceContext) {
-        final UriBuilder baseBuilderUriBuilder = baseBuilderApiUrl == null || baseBuilderApiUrl.isEmpty()
-                                                 ? serviceContext.getBaseUriBuilder()
-                                                 : UriBuilder.fromUri(baseBuilderApiUrl);
+        final UriBuilder baseBuilderUriBuilder = serviceContext.getBaseUriBuilder();
         final String builderUrl = baseBuilderUriBuilder.path(BuilderService.class).build(workspace).toString();
         return new RemoteServiceDescriptor(builderUrl);
     }
@@ -1208,7 +1219,7 @@ public class RunQueue {
         @Override
         public void run() {
             boolean ok = false;
-            String requestMethod = "HEAD";
+            String requestMethod = HttpMethod.HEAD;
             for (int i = 0; !ok && i < healthCheckAttempts; i++) {
                 if (Thread.currentThread().isInterrupted()) {
                     return;
@@ -1231,7 +1242,7 @@ public class RunQueue {
                         // to weak and will trigger much more GET than with this fallback.
                         // Note: Response.Status in JAX-WS in JEE6 hasn't any status matching 405, so here we use int code comparison. Fixed
                         // in JEE7.
-                        requestMethod = "GET";
+                        requestMethod = HttpMethod.GET;
                     }
                     Response.Status status = Response.Status.fromStatusCode(conn.getResponseCode());
                     if (status == null) {
@@ -1271,13 +1282,15 @@ public class RunQueue {
                 case STOPPED:
                 case ERROR:
                 case RUN_TASK_QUEUE_TIME_EXCEEDED:
+                case CANCELED:
                     try {
                         final ChannelBroadcastMessage bm = new ChannelBroadcastMessage();
                         String workspaceId = event.getWorkspace();
                         bm.setChannel(String.format("workspace:resources:%s", workspaceId));
 
                         final ResourcesDescriptor resourcesDescriptor = DtoFactory.getInstance().createDto(ResourcesDescriptor.class)
-                                                                            .withUsedMemory(String.valueOf(getUsedMemory(workspaceId)));
+                                                                                  .withUsedMemory(
+                                                                                          String.valueOf(getUsedMemory(workspaceId)));
                         bm.setBody(DtoFactory.getInstance().toJson(resourcesDescriptor));
                         WSConnectionContext.sendMessage(bm);
                     } catch (Exception e) {
@@ -1316,6 +1329,7 @@ public class RunQueue {
                     case PREPARATION_STARTED:
                     case STARTED:
                     case STOPPED:
+                    case CANCELED:
                     case ERROR:
                         bm.setChannel(String.format("runner:status:%d", id));
                         try {

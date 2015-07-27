@@ -22,7 +22,6 @@ import org.eclipse.che.api.project.server.type.Variable;
 import org.eclipse.che.api.project.shared.Builders;
 import org.eclipse.che.api.project.shared.Runners;
 import org.eclipse.che.api.project.shared.dto.SourceEstimation;
-
 import org.eclipse.che.api.vfs.server.VirtualFile;
 import org.eclipse.che.api.vfs.shared.dto.AccessControlEntry;
 import org.eclipse.che.api.vfs.shared.dto.Principal;
@@ -42,6 +41,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+
+import javax.ws.rs.core.MediaType;
 
 /**
  * Server side representation for codenvy project.
@@ -392,14 +394,35 @@ public class Project {
         public void remove(String path) throws ForbiddenException, ServerException, ConflictException {
 
             Set<String> all = read();
-            all.remove(path);
-            write(all);
+            if (all.contains(path)) {
+                all.remove(path);
+                write(all);
+            }
 
         }
 
         public void add(String path) throws ForbiddenException, ServerException, ConflictException {
             Set<String> all = read();
             all.add(path);
+            write(all);
+        }
+
+        public void update(String oldPath, String newPath) throws ForbiddenException, ServerException, ConflictException {
+            Set<String> all = new CopyOnWriteArraySet<>(read());
+
+            all.remove(oldPath);
+            all.add(newPath);
+
+            //update subModule paths
+            for (String modulePath: all) {
+                if (modulePath.startsWith(oldPath + "/")) {
+                    all.remove(modulePath);
+
+                    String subModulePath = modulePath.replaceFirst(oldPath, newPath);
+                    all.add(subModulePath);
+                }
+            }
+
             write(all);
         }
 
@@ -435,7 +458,7 @@ public class Project {
             file = baseFolder.getChild(MODULES_PATH);
 
             if (file == null && !modules.isEmpty())
-                file = ((FolderEntry)baseFolder.getChild(".codenvy")).createFile("modules", new byte[0], "text/plain");
+                file = ((FolderEntry)baseFolder.getChild(".codenvy")).createFile("modules", new byte[0], MediaType.TEXT_PLAIN);
 
 //                if(modules.isEmpty() && file != null)
 //                    file.remove();

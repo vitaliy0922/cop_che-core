@@ -75,7 +75,15 @@ public interface EditorAgent {
     @Nullable
     EditorPartPresenter getActiveEditor();
 
-    public interface OpenEditorCallback{
+    /**
+     * Updates editor node. This method replace old editor node to new one
+     *
+     * @param path editor path
+     * @param virtualFile new file for editor
+     */
+    void updateEditorNode(@Nonnull String path, @Nonnull VirtualFile virtualFile);
+
+    interface OpenEditorCallback{
         void onEditorOpened(EditorPartPresenter editor);
     }
 }

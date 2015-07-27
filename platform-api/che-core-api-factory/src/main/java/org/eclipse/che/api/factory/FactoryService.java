@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.eclipse.che.api.factory;
 
+import org.eclipse.che.api.account.server.dao.AccountDao;
+import org.eclipse.che.api.account.server.dao.Member;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.ForbiddenException;
@@ -20,8 +22,7 @@ import org.eclipse.che.api.core.rest.Service;
 import org.eclipse.che.api.core.rest.shared.dto.Link;
 import org.eclipse.che.api.factory.dto.Author;
 import org.eclipse.che.api.factory.dto.Factory;
-import org.eclipse.che.api.factory.dto.FactoryV2_0;
-import org.eclipse.che.api.factory.dto.Workspace;
+import org.eclipse.che.api.factory.dto.FactoryV2_1;
 import org.eclipse.che.api.project.server.ProjectConfig;
 import org.eclipse.che.api.project.server.ProjectJson;
 import org.eclipse.che.api.project.server.DtoConverter;
@@ -39,6 +40,9 @@ import org.eclipse.che.commons.lang.Pair;
 import org.eclipse.che.commons.lang.URLEncodedUtils;
 import org.eclipse.che.commons.user.User;
 import org.eclipse.che.dto.server.DtoFactory;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.gson.JsonSyntaxException;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
@@ -57,6 +61,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -64,10 +69,12 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -97,10 +104,12 @@ public class FactoryService extends Service {
     private LinksHelper            linksHelper;
     private FactoryBuilder         factoryBuilder;
     private ProjectManager         projectManager;
+    private AccountDao             accountDao;
 
     @Inject
     public FactoryService(@Named("api.endpoint") String baseApiUrl,
                           FactoryStore factoryStore,
+                          AccountDao accountDao,
                           FactoryCreateValidator createValidator,
                           FactoryAcceptValidator acceptValidator,
                           FactoryEditValidator factoryEditValidator,
@@ -108,6 +117,7 @@ public class FactoryService extends Service {
                           FactoryBuilder factoryBuilder,
                           ProjectManager projectManager) {
         this.baseApiUrl = baseApiUrl;
+        this.accountDao = accountDao;
         this.factoryStore = factoryStore;
         this.createValidator = createValidator;
         this.acceptValidator = acceptValidator;
@@ -187,11 +197,6 @@ public class FactoryService extends Service {
                 throw new ConflictException("No factory URL information found in 'factoryUrl' section of multipart/form-data.");
             }
 
-            if (null == factory.getCreator()) {
-                factory.setCreator(DtoFactory.getInstance().createDto(Author.class));
-            }
-            factory.getCreator().withUserId(context.getUser().getId()).withCreated(System.currentTimeMillis());
-
             processDefaults(factory);
             createValidator.validateOnCreate(factory);
             String factoryId = factoryStore.saveFactory(factory, images);
@@ -264,7 +269,6 @@ public class FactoryService extends Service {
         } catch (UnsupportedEncodingException e) {
             throw new ServerException(e.getLocalizedMessage());
         }
-        processDefaults(factoryUrl);
         if (validate) {
             acceptValidator.validateOnAccept(factoryUrl, true);
         }
@@ -365,15 +369,8 @@ public class FactoryService extends Service {
         // Validate the factory against the current user
         factoryEditValidator.validate(existingFactory, userId);
 
-        // Check author is set and copy created date from old factory
-        Author newAuthor = newFactory.getCreator();
-        if (newAuthor == null || newAuthor.getUserId() == null) {
-            newAuthor = DtoFactory.getInstance().createDto(Author.class);
-            newFactory.setCreator(newAuthor);
-        }
-        if (newAuthor.getUserId() == null) {
-            newAuthor.setUserId(user.getId());
-        }
+        processDefaults(newFactory);
+
         newFactory.getCreator().withCreated(existingFactory.getCreator().getCreated());
         newFactory.setId(existingFactory.getId());
 
@@ -403,7 +400,7 @@ public class FactoryService extends Service {
      * @throws org.eclipse.che.api.core.ApiException
      *         - {@link org.eclipse.che.api.core.NotFoundException} when factory with given id doesn't exist
      */
-    @RolesAllowed("user")
+    @RolesAllowed({"user", "system/manager"})
     @GET
     @Path("/find")
     @Produces({MediaType.APPLICATION_JSON})
@@ -415,9 +412,6 @@ public class FactoryService extends Service {
         if (queryParams.isEmpty()) {
             throw new IllegalArgumentException("Query must contain at least one attribute.");
         }
-        if (queryParams.containsKey("accountid")) {
-            queryParams.put("orgid", queryParams.remove("accountid"));
-        }
         ArrayList<Pair> pairs = new ArrayList<>();
         for (Map.Entry<String, Set<String>> entry : queryParams.entrySet()) {
             if (!entry.getValue().isEmpty())
@@ -426,7 +420,7 @@ public class FactoryService extends Service {
         List<Factory> factories = factoryStore.findByAttribute(pairs.toArray(new Pair[pairs.size()]));
         for (Factory factory : factories) {
             result.add(DtoFactory.getInstance().createDto(Link.class)
-                                 .withMethod("GET")
+                                 .withMethod(HttpMethod.GET)
                                  .withRel("self")
                                  .withProduces(MediaType.APPLICATION_JSON)
                                  .withConsumes(null)
@@ -584,7 +578,7 @@ public class FactoryService extends Service {
             Map<String, AttributeValue> attributes = projectDescription.getAttributes();
             if (attributes.containsKey("vcs.provider.name") && attributes.get("vcs.provider.name").getList().contains("git")) {
                 final Link importSourceLink = dtoFactory.createDto(Link.class)
-                                                        .withMethod("GET")
+                                                        .withMethod(HttpMethod.GET)
                                                         .withHref(UriBuilder.fromUri(baseApiUrl)
                                                                             .path("git")
                                                                             .path(workspace)
@@ -619,23 +613,51 @@ public class FactoryService extends Service {
         } catch (IOException e) {
             throw new ServerException(e.getLocalizedMessage());
         }
-        return Response.ok(dtoFactory.createDto(FactoryV2_0.class)
+        return Response.ok(dtoFactory.createDto(FactoryV2_1.class)
                                      .withProject(newProject)
                                      .withSource(dtoFactory.createDto(Source.class).withProject(source))
-                                     .withV("2.0"), MediaType.APPLICATION_JSON)
-                       .header("Content-Disposition", "attachment; filename=" + path + ".json")
+                                     .withV("2.1"), MediaType.APPLICATION_JSON)
+                       .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + path + ".json")
                        .build();
     }
 
-    private void processDefaults(Factory factory)  {
-        if (factory.getWorkspace() ==  null) {
-            factory.setWorkspace(DtoFactory.getInstance().createDto(Workspace.class).withType("temp").withLocation("owner"));
+    private void processDefaults(Factory factory) throws ApiException {
+
+        User currentUser =  EnvironmentContext.getCurrent().getUser();
+        if (factory.getCreator() == null) {
+            factory.setCreator(DtoFactory.getInstance().createDto(Author.class).withUserId(currentUser.getId()).withCreated(
+                    System.currentTimeMillis()));
         } else {
-            if (isNullOrEmpty(factory.getWorkspace().getType())) {
-                factory.getWorkspace().setType("temp");
+            if (isNullOrEmpty(factory.getCreator().getUserId())){
+                factory.getCreator().setUserId(currentUser.getId());
             }
-            if (isNullOrEmpty(factory.getWorkspace().getLocation())) {
-                factory.getWorkspace().setLocation("owner");
+            if (factory.getCreator().getCreated() == null) {
+                factory.getCreator().setCreated(System.currentTimeMillis());
+            }
+        }
+
+        if (factory.getWorkspace() != null && "owner".equals(factory.getWorkspace().getLocation()) &&
+            factory.getCreator().getAccountId() == null) {
+            List<Member> ownedAccounts = FluentIterable.from(accountDao.getByMember(currentUser.getId())).filter(new Predicate<Member>() {
+                @Override
+                public boolean apply(Member input) {
+                    return input.getRoles().contains("account/owner");
+                }
+            }).toList();
+            switch (ownedAccounts.size()) {
+                case 0: {
+                    // must never happen but who knows
+                    throw new ForbiddenException(
+                            "You are not owner of any account, so you can't create factory with such workspace location.");
+                }
+                case 1: {
+                    factory.getCreator().setAccountId(ownedAccounts.get(0).getAccountId());
+                    break;
+                }
+                default: {
+                    throw new ForbiddenException(
+                            "You are owner of more than one account. Please indicate which one to use using creator/accountId property.");
+                }
             }
         }
     }

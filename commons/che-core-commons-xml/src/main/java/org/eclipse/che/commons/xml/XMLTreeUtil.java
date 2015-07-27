@@ -13,6 +13,7 @@ package org.eclipse.che.commons.xml;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -268,6 +269,33 @@ public final class XMLTreeUtil {
             return idx;
         }
         return indexOfAttributeName(src, target, idx + 1);
+    }
+
+    public static byte[] replaceAll(byte[] src, byte[] target, byte[] replacement) {
+        final ByteArrayOutputStream result = new ByteArrayOutputStream(src.length);
+        int i = 0;
+        int wrote = 0;
+        while ((i = indexOf(src, target, i)) != -1) {
+            int len = i - wrote;
+            result.write(src, wrote, len);
+            result.write(replacement, 0, replacement.length);
+            wrote += len + target.length;
+            i += target.length;
+        }
+        result.write(src, wrote, src.length - wrote);
+        return result.toByteArray();
+    }
+
+    public static int rootStart(byte[] xml) {
+        final byte[] open = {'<'};
+        int pos = indexOf(xml, open, 0);
+        while (xml[pos + 1] == '?' || xml[pos + 1] == '!') {
+            if (xml[pos + 1] == '!' && xml[pos + 2] == '-' && xml[pos + 3] == '-') {
+                pos = indexOf(xml, new byte[] {'-', '-', '>'}, pos + 1);
+            }
+            pos = indexOf(xml, open, pos + 1);
+        }
+        return pos;
     }
 
     private XMLTreeUtil() {

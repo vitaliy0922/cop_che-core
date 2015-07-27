@@ -29,6 +29,7 @@ import org.eclipse.che.api.core.util.StreamPump;
 import org.eclipse.che.api.core.util.Watchdog;
 import org.eclipse.che.commons.lang.IoUtil;
 import org.eclipse.che.dto.server.DtoFactory;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.slf4j.Logger;
@@ -36,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.ws.rs.core.MediaType;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -162,7 +165,7 @@ public abstract class Builder {
             executor = new MyThreadPoolExecutor(numberOfWorkers <= 0 ? Runtime.getRuntime().availableProcessors() : numberOfWorkers,
                                                 queueSize);
             scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat(
-                    getName() + "-BuilderSchedulerPool-").setDaemon(true).build());
+                    getName() + "-BuilderSchedulerPool-%d").setDaemon(true).build());
             scheduler.scheduleAtFixedRate(new Runnable() {
                 public void run() {
                     int num = 0;
@@ -413,7 +416,7 @@ public abstract class Builder {
 
     protected BuildLogger createBuildLogger(BuilderConfiguration buildConfiguration, java.io.File logFile) throws BuilderException {
         try {
-            return new DefaultBuildLogger(logFile, "text/plain");
+            return new DefaultBuildLogger(logFile, MediaType.TEXT_PLAIN);
         } catch (IOException e) {
             throw new BuilderException(e);
         }
@@ -784,7 +787,7 @@ public abstract class Builder {
         private MyThreadPoolExecutor(int workerNumber, int queueSize) {
             super(workerNumber, workerNumber, 0L, TimeUnit.MILLISECONDS,
                   new LinkedBlockingQueue<Runnable>(queueSize),
-                  new ThreadFactoryBuilder().setNameFormat(Builder.this.getName() + "-Builder-").setDaemon(true).build(),
+                  new ThreadFactoryBuilder().setNameFormat(Builder.this.getName() + "-Builder-[%d]").setDaemon(true).build(),
                   new ManyBuildTasksRejectedExecutionPolicy(new AbortPolicy()));
         }
 

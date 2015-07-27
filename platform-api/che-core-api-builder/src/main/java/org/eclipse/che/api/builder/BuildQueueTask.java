@@ -13,16 +13,20 @@ package org.eclipse.che.api.builder;
 import org.eclipse.che.api.builder.dto.BaseBuilderRequest;
 import org.eclipse.che.api.builder.dto.BuildTaskDescriptor;
 import org.eclipse.che.api.builder.dto.BuilderMetric;
+import org.eclipse.che.api.builder.internal.BuilderEvent;
 import org.eclipse.che.api.builder.internal.Constants;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.rest.HttpOutputMessage;
 import org.eclipse.che.api.core.rest.shared.dto.Link;
 import org.eclipse.che.api.core.util.Cancellable;
 import org.eclipse.che.dto.server.DtoFactory;
 
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -39,6 +43,7 @@ public class BuildQueueTask implements Cancellable {
     private final long               waitingTimeout;
     private final BaseBuilderRequest request;
     private final Future<RemoteTask> future;
+    private final EventService       eventService;
 
     /* NOTE: don't use directly! Always use getter that makes copy of this UriBuilder. */
     private final UriBuilder uriBuilder;
@@ -54,8 +59,10 @@ public class BuildQueueTask implements Cancellable {
                    BaseBuilderRequest request,
                    long waitingTimeout,
                    Future<RemoteTask> future,
+                   EventService eventService,
                    UriBuilder uriBuilder) {
         this.id = id;
+        this.eventService = eventService;
         this.uriBuilder = uriBuilder;
         this.waitingTimeout = waitingTimeout;
         this.future = future;
@@ -127,6 +134,7 @@ public class BuildQueueTask implements Cancellable {
             task.cancel();
         } else {
             future.cancel(true);
+            eventService.publish(BuilderEvent.canceledEvent(id, request.getWorkspace(), request.getProject()));
         }
     }
 
@@ -145,18 +153,18 @@ public class BuildQueueTask implements Cancellable {
                                 .withRel(Constants.LINK_REL_GET_STATUS)
                                 .withHref(getUriBuilder().path(BuilderService.class, "getStatus").build(request.getWorkspace(), id)
                                                          .toString())
-                                .withMethod("GET")
+                                .withMethod(HttpMethod.GET)
                                 .withProduces(MediaType.APPLICATION_JSON));
             links.add(dtoFactory.createDto(Link.class)
                                 .withRel(Constants.LINK_REL_CANCEL)
                                 .withHref(getUriBuilder().path(BuilderService.class, "cancel").build(request.getWorkspace(), id).toString())
-                                .withMethod("POST")
+                                .withMethod(HttpMethod.POST)
                                 .withProduces(MediaType.APPLICATION_JSON));
             final List<BuilderMetric> buildStats = new ArrayList<>(1);
             buildStats.add(dtoFactory.createDto(BuilderMetric.class)
-                                   .withName(BuilderMetric.WAITING_TIME_LIMIT)
-                                   .withValue(Long.toString(created + waitingTimeout))
-                                   .withDescription("Waiting for start limit"));
+                                     .withName(BuilderMetric.WAITING_TIME_LIMIT)
+                                     .withValue(Long.toString(created + waitingTimeout))
+                                     .withDescription("Waiting for start limit"));
             descriptor = dtoFactory.createDto(BuildTaskDescriptor.class)
                                    .withTaskId(id)
                                    .withStatus(BuildStatus.IN_QUEUE)
@@ -224,7 +232,7 @@ public class BuildQueueTask implements Cancellable {
 
     private void copyQueryStringInUriBuilder(String url, UriBuilder uriBuilder) {
         final int q = url.indexOf('?');
-        final String queryString =  q > 0 ? url.substring(q + 1) : null;
+        final String queryString = q > 0 ? url.substring(q + 1) : null;
         if (queryString != null) {
             uriBuilder.replaceQuery(queryString);
         }

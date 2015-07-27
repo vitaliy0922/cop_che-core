@@ -74,6 +74,9 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("navigateToFile.canNotOpenFile")
     String navigateToFileCanNotOpenFile();
 
+    @Key("navigateToFile.searchIsCaseSensitive")
+    String navigateToFileSearchIsCaseSensitive();
+
     @Key("appearance.title")
     String appearanceTitle();
 
@@ -86,6 +89,26 @@ public interface CoreLocalizationConstant extends Messages {
 
     @Key("action.delete.description")
     String deleteItemActionDescription();
+
+    /* Cut */
+    @Key("action.cut.text")
+    String cutItemsActionText();
+    @Key("action.cut.description")
+    String cutItemsActionDescription();
+
+    /* Copy */
+    @Key("action.copy.text")
+    String copyItemsActionText();
+    @Key("action.copy.description")
+    String copyItemsActionDescription();
+
+    /* Paste */
+    @Key("action.paste.text")
+    String pasteItemsActionText();
+    @Key("action.paste.description")
+    String pasteItemsActionDescription();
+
+    /* */
 
     @Key("deleteNodeDialogTitle")
     String deleteNodeDialogTitle();
@@ -113,6 +136,9 @@ public interface CoreLocalizationConstant extends Messages {
 
     @Key("deleteProjectDialogQuestion")
     String deleteProjectDialogQuestion(String name);
+
+    @Key("deleteModuleDialogQuestion")
+    String deleteModuleDialogQuestion(String name);
 
     @Key("deleteMultipleDialogMessage")
     String deleteMultipleDialogMessage();
@@ -208,6 +234,12 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("redo.description")
     String redoDescription();
 
+    @Key("refresh.projectTree.name")
+    String refreshProjectTreeName();
+
+    @Key("refresh.projectTree.description")
+    String refreshProjectTreeDescription();
+
     @Key("uploadFile.name")
     String uploadFileName();
 
@@ -226,8 +258,17 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("uploadFolderFromZip.description")
     String uploadFolderFromZipDescription();
 
-    @Key("uploadFolderFromZip.title")
-    String uploadFolderFromZipTitle();
+    @Key("downloadZip.project.name")
+    String downloadProjectAsZipName();
+
+    @Key("downloadZip.project.description")
+    String downloadProjectAsZipDescription();
+
+    @Key("download.item.name")
+    String downloadItemName();
+
+    @Key("download.item.description")
+    String downloadItemDescription();
 
     @Key("uploadFolderFromZip.overwrite")
     String uploadFolderFromZipOverwrite();
@@ -423,8 +464,32 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("messages.promptSaveChanges")
     String messagesPromptSaveChanges();
 
-    @Key("messages.unableOpenFile")
-    public String unableOpenFile(String path);
+    @Key("messages.unableOpenResource")
+    String unableOpenResource(String path);
+
+    @Key("messages.unableSelectResource")
+    String unableSelectResource(String path);
+
+    @Key("messages.canNotOpenFileWithoutParams")
+    String canNotOpenFileWithoutParams();
+
+    @Key("messages.fileToOpenIsNotSpecified")
+    String fileToOpenIsNotSpecified();
+
+    @Key("messages.canNotOpenNodeWithoutParams")
+    String canNotOpenNodeWithoutParams();
+
+    @Key("messages.canNotSelectNodeWithoutParams")
+    String canNotSelectNodeWithoutParams();
+
+    @Key("messages.nodeToOpenIsNotSpecified")
+    String nodeToOpenIsNotSpecified();
+
+    @Key("messages.nodeToSelectIsNotSpecified")
+    String nodeToSelectIsNotSpecified();
+
+    @Key("messages.noOpenedProject")
+    String noOpenedProject();
 
     /* Buttons */
     @Key("ok")
@@ -460,12 +525,6 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("delete")
     @DefaultMessage("Delete")
     String delete();
-
-    @Key("codenvy.projectClosed.title")
-    String codenvyTabTitle();
-
-    @Key("codenvy.projectOpened.title")
-    String codenvyTabTitle(String projectName);
 
     @Key("projectProblem.title")
     String projectProblemTitle();

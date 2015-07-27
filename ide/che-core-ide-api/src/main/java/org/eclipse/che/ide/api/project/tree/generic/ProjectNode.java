@@ -14,8 +14,10 @@ import org.eclipse.che.api.project.gwt.client.ProjectServiceClient;
 import org.eclipse.che.api.project.shared.dto.ItemReference;
 import org.eclipse.che.api.project.shared.dto.ProjectDescriptor;
 import org.eclipse.che.ide.api.event.CloseCurrentProjectEvent;
+import org.eclipse.che.ide.api.event.DeleteModuleEvent;
 import org.eclipse.che.ide.api.event.ProjectDescriptorChangedEvent;
 import org.eclipse.che.ide.api.event.ProjectDescriptorChangedHandler;
+import org.eclipse.che.ide.api.event.RenameNodeEvent;
 import org.eclipse.che.ide.api.project.tree.AbstractTreeNode;
 import org.eclipse.che.ide.api.project.tree.TreeNode;
 import org.eclipse.che.ide.collections.Array;
@@ -38,7 +40,8 @@ import java.util.List;
  * @author Artem Zatsarynnyy
  */
 public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements StorableNode<ProjectDescriptor>, Openable,
-                                                                                ProjectDescriptorChangedHandler {
+                                                                                ProjectDescriptorChangedHandler,
+                                                                                UpdateTreeNodeDataIterable {
     protected final ProjectServiceClient   projectServiceClient;
     protected final DtoUnmarshallerFactory dtoUnmarshallerFactory;
     protected final EventBus               eventBus;
@@ -114,26 +117,98 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
 
     /** {@inheritDoc} */
     @Override
-    public void refreshChildren(final AsyncCallback<TreeNode<?>> callback) {
-        getChildren(getPath(), new AsyncCallback<Array<ItemReference>>() {
+    public void rename(final String newName, final RenameCallback renameCallback) {
+        projectServiceClient.rename(getPath(), newName, null, new AsyncRequestCallback<Void>() {
             @Override
-            public void onSuccess(Array<ItemReference> childItems) {
-                setChildren(getChildNodesForItems(childItems));
-                callback.onSuccess(ProjectNode.this);
+            protected void onSuccess(Void result) {
+                final String parentPath = ((StorableNode)getParent()).getPath();
+                final String newPath = parentPath + "/" + newName;
+                eventBus.fireEvent(new RenameNodeEvent(ProjectNode.this, newPath));
+            }
+
+            @Override
+            protected void onFailure(Throwable exception) {
+                renameCallback.onFailure(exception);
+            }
+        });
+    }
+
+    /** {@inheritDoc} */
+    public void updateData(final AsyncCallback<Void> asyncCallback, String newPath) {
+        Unmarshallable<ProjectDescriptor> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(ProjectDescriptor.class);
+        projectServiceClient.getProject(newPath, new AsyncRequestCallback<ProjectDescriptor>(unmarshaller) {
+            @Override
+            protected void onSuccess(ProjectDescriptor result) {
+                setData(result);
+                asyncCallback.onSuccess(null);
+            }
+
+            @Override
+            protected void onFailure(Throwable exception) {
+                asyncCallback.onFailure(exception);
+            }
+        });
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void refreshChildren(final AsyncCallback<TreeNode<?>> callback) {
+        getModules(getData(), new AsyncCallback<Array<ProjectDescriptor>>() {
+            @Override
+            public void onSuccess(final Array<ProjectDescriptor> modules) {
+                getChildren(getData().getPath(), new AsyncCallback<Array<ItemReference>>() {
+                    @Override
+                    public void onSuccess(Array<ItemReference> childItems) {
+                        setChildren(getChildNodesForItems(childItems, modules));
+                        callback.onSuccess(ProjectNode.this);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable caught) {
+                        callback.onFailure(caught);
+                    }
+                });
             }
 
             @Override
             public void onFailure(Throwable caught) {
+                //can be if pom.xml not found
+                getChildren(getData().getPath(), new AsyncCallback<Array<ItemReference>>() {
+                    @Override
+                    public void onSuccess(Array<ItemReference> childItems) {
+                        callback.onSuccess(ProjectNode.this);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable caught) {
+                        callback.onFailure(caught);
+                    }
+                });
                 callback.onFailure(caught);
             }
         });
     }
 
-    private Array<TreeNode<?>> getChildNodesForItems(Array<ItemReference> childItems) {
+    protected void getModules(ProjectDescriptor project, final AsyncCallback<Array<ProjectDescriptor>> callback) {
+        final Unmarshallable<Array<ProjectDescriptor>> unmarshaller = dtoUnmarshallerFactory.newArrayUnmarshaller(ProjectDescriptor.class);
+        projectServiceClient.getModules(project.getPath(), new AsyncRequestCallback<Array<ProjectDescriptor>>(unmarshaller) {
+            @Override
+            protected void onSuccess(Array<ProjectDescriptor> result) {
+                callback.onSuccess(result);
+            }
+
+            @Override
+            protected void onFailure(Throwable exception) {
+                callback.onFailure(exception);
+            }
+        });
+    }
+
+    private Array<TreeNode<?>> getChildNodesForItems(Array<ItemReference> childItems, Array<ProjectDescriptor> modules) {
         Array<TreeNode<?>> oldChildren = Collections.createArray(getChildren().asIterable());
         Array<TreeNode<?>> newChildren = Collections.createArray();
         for (ItemReference item : childItems.asIterable()) {
-            AbstractTreeNode node = createChildNode(item);
+            AbstractTreeNode node = createChildNode(item, modules);
             if (node != null) {
                 if (oldChildren.contains(node)) {
                     final int i = oldChildren.indexOf(node);
@@ -156,11 +231,6 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
 
     /** {@inheritDoc} */
     @Override
-    public void rename(String newName, RenameCallback callback) {
-    }
-
-    /** {@inheritDoc} */
-    @Override
     public boolean isDeletable() {
         return true;
     }
@@ -173,18 +243,10 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
             protected void onSuccess(Void result) {
                 if (isRootProject()) {
                     eventBus.fireEvent(new CloseCurrentProjectEvent());
+                } else {
+                    eventBus.fireEvent(new DeleteModuleEvent(ProjectNode.this));
                 }
-                ProjectNode.super.delete(new DeleteCallback() {
-                    @Override
-                    public void onDeleted() {
-                        callback.onDeleted();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable caught) {
-                        callback.onFailure(caught);
-                    }
-                });
+                ProjectNode.super.delete(callback);
             }
 
             @Override
@@ -243,11 +305,31 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
      * @return new node instance or {@code null} if the specified item is not supported
      */
     @Nullable
-    protected AbstractTreeNode<?> createChildNode(ItemReference item) {
-        if ("file".equals(item.getType())) {
-            return treeStructure.newFileNode(ProjectNode.this, item);
-        } else if ("folder".equals(item.getType()) || "project".equals(item.getType())) {
-            return treeStructure.newFolderNode(ProjectNode.this, item);
+    protected AbstractTreeNode<?> createChildNode(ItemReference item, Array<ProjectDescriptor> modules) {
+        if ("project".equals(item.getType())) {
+            ProjectDescriptor module = getModule(item, modules);
+            if (module != null) {
+                return getTreeStructure().newModuleNode(this, module);
+            }
+            // if project isn't a module - show it as folder
+            return getTreeStructure().newFolderNode(this, item);
+        } else if ("folder".equals(item.getType())) {
+            return getTreeStructure().newFolderNode(this, item);
+        } else if ("file".equals(item.getType())) {
+            return getTreeStructure().newFileNode(this, item);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private ProjectDescriptor getModule(ItemReference folderItem, Array<ProjectDescriptor> modules) {
+        if ("project".equals(folderItem.getType())) {
+            for (ProjectDescriptor module : modules.asIterable()) {
+                if (folderItem.getName().equals(module.getName())) {
+                    return module;
+                }
+            }
         }
         return null;
     }
@@ -260,6 +342,7 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
      * @return value of the specified attribute or {@code null} if attribute does not exists
      */
     @Nullable
+    @Deprecated
     public String getAttributeValue(String attributeName) {
         List<String> attributeValues = getAttributeValues(attributeName);
         if (attributeValues != null && !attributeValues.isEmpty()) {
@@ -277,6 +360,7 @@ public class ProjectNode extends AbstractTreeNode<ProjectDescriptor> implements 
      * @see #getAttributeValue(String)
      */
     @Nullable
+    @Deprecated
     public List<String> getAttributeValues(String attributeName) {
         return getData().getAttributes().get(attributeName);
     }

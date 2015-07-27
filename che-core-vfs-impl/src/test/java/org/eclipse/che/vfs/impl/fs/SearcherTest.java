@@ -15,7 +15,6 @@ import org.eclipse.che.api.vfs.server.VirtualFileFilter;
 import org.eclipse.che.api.vfs.shared.dto.Item;
 import org.eclipse.che.api.vfs.shared.dto.ItemList;
 import org.eclipse.che.commons.lang.Pair;
-
 import org.apache.lucene.analysis.core.SimpleAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -36,13 +35,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+
 public class SearcherTest extends LocalFileSystemTest {
+    private static final String FILE_NAME          = "SearcherTest_File1";
+    private static final String SEARCH_FOLDER_PATH = "SearcherTest_Folder";
     private Pair<String[], String>[] queryToResult;
 
     private String searchTestPath;
     private String file1;
     private String file2;
     private String file3;
+    private String file4;
 
     private CleanableSearcher searcher;
     private SearcherManager   searcherManager;
@@ -53,18 +59,20 @@ public class SearcherTest extends LocalFileSystemTest {
         super.setUp();
         System.setProperty("java.io.tmpdir", root.getParent());
 
-        searchTestPath = createDirectory(testRootPath, "SearcherTest_Folder");
+        searchTestPath = createDirectory(testRootPath, SEARCH_FOLDER_PATH);
 
         file1 = createFile(searchTestPath, "SearcherTest_File01.xml", "to be or not to be".getBytes());
         writeProperties(file1, Collections
                 .singletonMap("vfs:mimeType", new String[]{"text/xml"})); // text/xml just for test, it is not xml content
 
         file2 = createFile(searchTestPath, "SearcherTest_File02.txt", "to be or not to be".getBytes());
-        writeProperties(file2, Collections.singletonMap("vfs:mimeType", new String[]{"text/plain"}));
+        writeProperties(file2, Collections.singletonMap("vfs:mimeType", new String[]{MediaType.TEXT_PLAIN}));
 
         String folder1 = createDirectory(searchTestPath, "folder01");
         file3 = createFile(folder1, "SearcherTest_File03.txt", "to be or not to be".getBytes());
-        writeProperties(file3, Collections.singletonMap("vfs:mimeType", new String[]{"text/plain"}));
+        writeProperties(file3, Collections.singletonMap("vfs:mimeType", new String[]{MediaType.TEXT_PLAIN}));
+
+        file4 = createFile(searchTestPath, FILE_NAME, "maybe you should think twice".getBytes());
 
         queryToResult = new Pair[10];
         // text
@@ -114,9 +122,9 @@ public class SearcherTest extends LocalFileSystemTest {
         ByteArrayContainerResponseWriter writer = new ByteArrayContainerResponseWriter();
         String requestPath = SERVICE_URI + "search";
         Map<String, List<String>> h = new HashMap<>(1);
-        h.put("Content-Type", Arrays.asList("application/x-www-form-urlencoded"));
+        h.put(HttpHeaders.CONTENT_TYPE, Arrays.asList(MediaType.APPLICATION_FORM_URLENCODED));
         for (Pair<String[], String> pair : queryToResult) {
-            ContainerResponse response = launcher.service("POST", requestPath, BASE_URI, h, pair.second.getBytes(), writer, null);
+            ContainerResponse response = launcher.service(HttpMethod.POST, requestPath, BASE_URI, h, pair.second.getBytes(), writer, null);
             //log.info(new String(writer.getBody()));
             assertEquals("Error: " + response.getEntity(), 200, response.getStatus());
             List<Item> result = ((ItemList)response.getEntity()).getItems();
@@ -154,7 +162,7 @@ public class SearcherTest extends LocalFileSystemTest {
         searcherManager.maybeRefresh();
         IndexSearcher luceneSearcher = searcherManager.acquire();
         TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
-        assertEquals(3, topDocs.totalHits);
+        assertEquals(4, topDocs.totalHits);
         searcherManager.release(luceneSearcher);
 
         mountPoint.getVirtualFile(searchTestPath).delete(null);
@@ -169,14 +177,14 @@ public class SearcherTest extends LocalFileSystemTest {
         searcherManager.maybeRefresh();
         IndexSearcher luceneSearcher = searcherManager.acquire();
         TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
-        assertEquals(3, topDocs.totalHits);
+        assertEquals(4, topDocs.totalHits);
         searcherManager.release(luceneSearcher);
         mountPoint.getVirtualFile(searchTestPath).createFile("new_file.txt", null, new ByteArrayInputStream(DEFAULT_CONTENT_BYTES));
 
         searcherManager.maybeRefresh();
         luceneSearcher = searcherManager.acquire();
         topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
-        assertEquals(4, topDocs.totalHits);
+        assertEquals(5, topDocs.totalHits);
         searcherManager.release(luceneSearcher);
     }
 
@@ -237,7 +245,7 @@ public class SearcherTest extends LocalFileSystemTest {
         String newName = "___renamed";
         searcherManager.maybeRefresh();
         IndexSearcher luceneSearcher = searcherManager.acquire();
-        TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", file3)), 10);
+        TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", file2)), 10);
         assertEquals(1, topDocs.totalHits);
         searcherManager.release(luceneSearcher);
         mountPoint.getVirtualFile(file2).rename(newName, null, null);
@@ -248,6 +256,73 @@ public class SearcherTest extends LocalFileSystemTest {
         assertEquals(1, topDocs.totalHits);
         topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", file2)), 10);
         assertEquals(0, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+    }
+
+    public void testRenameFileByAddingFewNewSymbol() throws Exception {
+        String newName = FILE_NAME + "A";
+        String newPath =searchTestPath + '/' + newName;
+
+        searcherManager.maybeRefresh();
+        IndexSearcher luceneSearcher = searcherManager.acquire();
+        TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", file4)), 10);
+        assertEquals(1, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+        mountPoint.getVirtualFile(file4).rename(newName, null, null);
+
+        searcherManager.maybeRefresh();
+        luceneSearcher = searcherManager.acquire();
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", newPath)), 10);
+        assertEquals(1, topDocs.totalHits);
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", file4)), 10);
+        assertEquals(1, topDocs.totalHits);
+
+        String searchResult = luceneSearcher.doc(topDocs.scoreDocs[0].doc).getField("path").stringValue();
+
+        assertEquals(searchResult, newPath);
+
+        assertEquals(1, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+    }
+
+    public void testRenameFolder() throws Exception {
+        String newName = "___renamed";
+        searcherManager.maybeRefresh();
+        IndexSearcher luceneSearcher = searcherManager.acquire();
+        TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
+        assertEquals(4, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+        mountPoint.getVirtualFile(searchTestPath).rename(newName, null, null);
+
+        searcherManager.maybeRefresh();
+        luceneSearcher = searcherManager.acquire();
+
+        String newPath = testRootPath + "/" + newName;
+
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", newPath)), 10);
+        assertEquals(4, topDocs.totalHits);
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
+        assertEquals(0, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+    }
+
+    public void testRenameFolderByAddingFewNewSymbol() throws Exception {
+        String newName = SEARCH_FOLDER_PATH + "A";
+        String newPath = searchTestPath + "A";
+        searcherManager.maybeRefresh();
+        IndexSearcher luceneSearcher = searcherManager.acquire();
+        TopDocs topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
+        assertEquals(4, topDocs.totalHits);
+        searcherManager.release(luceneSearcher);
+        mountPoint.getVirtualFile(searchTestPath).rename(newName, null, null);
+
+        searcherManager.maybeRefresh();
+        luceneSearcher = searcherManager.acquire();
+
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", newPath)), 10);
+        assertEquals(4, topDocs.totalHits);
+        topDocs = luceneSearcher.search(new PrefixQuery(new Term("path", searchTestPath)), 10);
+        assertEquals(4, topDocs.totalHits);
         searcherManager.release(luceneSearcher);
     }
 }

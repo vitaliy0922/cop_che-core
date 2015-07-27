@@ -44,6 +44,8 @@ import static org.eclipse.che.commons.xml.XMLTreeUtil.asElements;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.closeTagLength;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.indexOf;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.indexOfAttributeName;
+import static org.eclipse.che.commons.xml.XMLTreeUtil.replaceAll;
+import static org.eclipse.che.commons.xml.XMLTreeUtil.rootStart;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.single;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.level;
 import static org.eclipse.che.commons.xml.XMLTreeUtil.insertBetween;
@@ -72,7 +74,7 @@ import static org.w3c.dom.Node.TEXT_NODE;
  * XML tool which provides abilities to modify and search
  * information in xml document without affecting of
  * existing formatting, comments.
- * <p/>
+ * <p>
  * XMLTree delegates out of the box implementation of
  * org.w3c.dom and provides a lot of functionality
  * such as XPath selection.
@@ -87,12 +89,12 @@ import static org.w3c.dom.Node.TEXT_NODE;
  * As you may see there are a lot of data manipulations
  * when update is going, so <b>you should not use this tool for
  * parsing huge xml documents or for often complex updates.</b>
- * <p/>
+ * <p>
  * XPath is embedded to XMLTree so each query to tree
  * is xpath query. You will be able to select/update
  * content provided with XMLTree elements or attributes
  * without working with xpath directly.
- * <p/>
+ * <p>
  * XMLTree provides methods which do the same
  * as model methods but sometimes they are more convenient,
  * you can use tree methods as well as model methods.
@@ -174,10 +176,13 @@ public final class XMLTree {
         if (xml.length == 0) {
             throw new XMLTreeException("Source content is empty");
         }
-        this.xml = xml;
         elements = new LinkedList<>();
         namespaces = newHashMapWithExpectedSize(EXPECTED_NAMESPACES_SIZE);
-        document = parseQuietly(xml);
+        this.xml = normalizeLineEndings(xml);
+        //reason: parser is going to replace all '\r\n' sequences with single '\n'
+        //which will affect elements position in source xml and produce incorrect XMLTree behaviour
+        //it comes from spec http://www.w3.org/TR/2004/REC-xml11-20040204/
+        document = parseQuietly(this.xml);
         constructTreeQuietly();
     }
 
@@ -199,7 +204,7 @@ public final class XMLTree {
      * Searches for requested elements text.
      * If there are no elements were found
      * empty list will be returned.
-     * <p/>
+     * <p>
      * You can use this method to request
      * not only elements text but for selecting
      * attributes values or whatever text information
@@ -270,7 +275,7 @@ public final class XMLTree {
     /**
      * Adds element to the end of the list
      * of existed children or adds it as only child.
-     * <p/>
+     * <p>
      * If there are more then only parent element
      * were found {@link XMLTreeException} will be thrown
      *
@@ -288,7 +293,7 @@ public final class XMLTree {
      * Inserts element before referenced one.
      * All comments related before referenced element
      * going to have same positions like they had before.
-     * <p/>
+     * <p>
      * If there are more then only referenced element
      * were found {@link XMLTreeException} will be thrown
      *
@@ -304,7 +309,7 @@ public final class XMLTree {
 
     /**
      * Inserts element after referenced one.
-     * <p/>
+     * <p>
      * If there are more then only referenced elements
      * were found {@link XMLTreeException} will be thrown
      *
@@ -326,7 +331,7 @@ public final class XMLTree {
      * pretty - if it was pretty. It is really strange
      * when parent element contains not only whitespaces
      * but another text content.
-     * <p/>
+     * <p>
      * If there are more then only referenced element
      * were found {@link XMLTreeException} will be thrown
      *
@@ -339,8 +344,13 @@ public final class XMLTree {
 
     /**
      * Returns copy of source bytes.
+     * TODO: write replacement explanation
      */
     public byte[] getBytes() {
+        final String separator = System.getProperty("line.separator");
+        if (!"\n".equals(separator)) {
+            return replaceAll(xml, "\n".getBytes(), separator.getBytes());
+        }
         return Arrays.copyOf(xml, xml.length);
     }
 
@@ -356,14 +366,14 @@ public final class XMLTree {
      * Writes source bytes to path
      */
     public void writeTo(Path path) throws IOException {
-        Files.write(path, xml);
+        Files.write(path, getBytes());
     }
 
     /**
      * Writes source bytes to file
      */
     public void writeTo(java.io.File file) throws IOException {
-        Files.write(file.toPath(), xml);
+        Files.write(file.toPath(), getBytes());
     }
 
     /**
@@ -417,7 +427,7 @@ public final class XMLTree {
         final XMLStreamReader reader = newXMLStreamReader();
         final LinkedList<Element> stack = new LinkedList<>();
         //before element open tag index
-        int beforeStart = rootStart() - 1;
+        int beforeStart = rootStart(xml) - 1;
         //used to associate each element with document node
         Node node = document.getDocumentElement();
         //used to hold previous reader event
@@ -510,7 +520,7 @@ public final class XMLTree {
 
     /**
      * Returns last text or cdata node in the chain of cdata and text nodes.
-     * <p/>
+     * <p>
      * i.e. node1 is text <i>node</i> and <i>node1</i> has next sibling <i>node2</i> as cdata node and
      * <i>node2</i> has next sibling <i>node3</i> as text node and node3 has next sibling <i>node4</i> as element
      * node, then <i>node3</i> will be returned as last text node in the chain. Consider following examples:
@@ -693,7 +703,7 @@ public final class XMLTree {
 
     /**
      * Removes element bytes from tree.
-     * <p/>
+     * <p>
      * It is important to save xml tree pretty view,
      * so element should be removed without of destroying
      * style of xml document.
@@ -966,19 +976,15 @@ public final class XMLTree {
         return relatedToNew.end.right;
     }
 
-    /**
-     * Searches for root start index in source bytes.
-     * Root start index equal to first occurrence of '<'
-     * when document doesn't start with {@literal <?xml} and
-     * it equal to second occurrence when document does.
-     */
-    private int rootStart() {
-        final byte[] open = {'<'};
-        int pos = indexOf(xml, open, 0);
-        while (xml[pos + 1] == '?' || xml[pos + 1] == '!') {
-            pos = indexOf(xml, open, pos + 1);
+    private byte[] normalizeLineEndings(byte[] src) {
+        final String separator = System.getProperty("line.separator");
+        //replacing all \r\n with \n
+        if (separator.equals("\r\n")) {
+            src = replaceAll(src, "\r\n".getBytes(), "\n".getBytes());
         }
-        return pos;
+        //replacing all \r with \n to prevent combination of \r\n which was created after
+        //\r\n replacement, i.e. content \r\r\n after first replacement will be \r\n which is not okay
+        return replaceAll(src, "\r".getBytes(), "\n".getBytes());
     }
 
     /**
@@ -1019,6 +1025,6 @@ public final class XMLTree {
 
     @Override
     public String toString() {
-        return new String(xml, UTF_8);
+        return new String(getBytes(), UTF_8);
     }
 }

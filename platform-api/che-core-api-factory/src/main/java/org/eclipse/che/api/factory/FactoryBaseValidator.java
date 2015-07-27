@@ -34,9 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static java.lang.Boolean.parseBoolean;
 import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
 
 /**
@@ -47,7 +47,7 @@ import static java.lang.String.format;
  */
 public abstract class FactoryBaseValidator {
     private static final Pattern PROJECT_NAME_VALIDATOR = Pattern.compile("^[\\\\\\w\\\\\\d]+[\\\\\\w\\\\\\d_.-]*$");
-    
+
     private final AccountDao    accountDao;
     private final UserDao       userDao;
     private final PreferenceDao preferenceDao;
@@ -129,13 +129,12 @@ public abstract class FactoryBaseValidator {
 
     protected void validateCreator(Factory factory) throws ApiException {
         final Workspace workspace = factory.getWorkspace();
-        if (workspace == null || workspace.getLocation() == null || workspace.getLocation().equals("owner")) {
+        if (workspace != null && "owner".equals(workspace.getLocation())) {
             String accountId = factory.getCreator() != null ? emptyToNull(factory.getCreator().getAccountId()) : null;
             if (accountId == null) {
                 throw new ConflictException("Current workspace location requires factory creator accountId to be set.");
             }
         }
-
     }
 
     protected void validateAccountId(Factory factory) throws ApiException {

@@ -31,7 +31,6 @@ import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.user.client.Timer;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
 /**
  * The implementation of {@link MessageBus}.
@@ -122,7 +121,7 @@ public class MessageBusImpl implements MessageBus {
      *         WebSocket server URL
      */
     @Inject
-    public MessageBusImpl(@Named("websocketUrl") String url) {
+    public MessageBusImpl(@WebSocketUrl String url) {
         this.url = url;
 
         MessageBuilder builder = new MessageBuilder(RequestBuilder.POST, null);
@@ -429,6 +428,11 @@ public class MessageBusImpl implements MessageBus {
     @Override
     public void addOnCloseHandler(ConnectionClosedHandler handler) {
         connectionClosedHandlers.add(handler);
+    }
+
+    @Override
+    public void removeOnCloseHandler(ConnectionClosedHandler handler) {
+        connectionClosedHandlers.remove(handler);
     }
 
     /** {@inheritDoc} */

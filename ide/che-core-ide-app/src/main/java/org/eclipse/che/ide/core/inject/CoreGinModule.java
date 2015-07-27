@@ -35,58 +35,19 @@ import org.eclipse.che.api.vfs.gwt.client.VfsServiceClient;
 import org.eclipse.che.api.vfs.gwt.client.VfsServiceClientImpl;
 import org.eclipse.che.api.workspace.gwt.client.WorkspaceServiceClient;
 import org.eclipse.che.api.workspace.gwt.client.WorkspaceServiceClientImpl;
-
-import org.eclipse.che.ide.about.AboutView;
-import org.eclipse.che.ide.actions.find.FindActionViewImpl;
-import org.eclipse.che.ide.api.extension.ExtensionRegistry;
-import org.eclipse.che.ide.core.editor.EditorAgentImpl;
-import org.eclipse.che.ide.extension.ExtensionManagerViewImpl;
-import org.eclipse.che.ide.filetypes.FileTypeRegistryImpl;
-import org.eclipse.che.ide.logger.AnalyticsEventLoggerExt;
-import org.eclipse.che.ide.menu.MainMenuView;
-import org.eclipse.che.ide.menu.MainMenuViewImpl;
-import org.eclipse.che.ide.menu.StatusPanelGroupView;
-import org.eclipse.che.ide.menu.StatusPanelGroupViewImpl;
-import org.eclipse.che.ide.navigation.NavigateToFileView;
-import org.eclipse.che.ide.notification.NotificationManagerView;
-import org.eclipse.che.ide.notification.NotificationManagerViewImpl;
-import org.eclipse.che.ide.openproject.OpenProjectView;
-import org.eclipse.che.ide.openproject.OpenProjectViewImpl;
-import org.eclipse.che.ide.outline.OutlinePartPresenter;
-import org.eclipse.che.ide.part.PartStackViewImpl;
-import org.eclipse.che.ide.part.console.ConsolePartPresenter;
-import org.eclipse.che.ide.part.editor.EditorPartStackView;
-import org.eclipse.che.ide.part.projectexplorer.ProjectExplorerView;
-import org.eclipse.che.ide.part.projectexplorer.ProjectExplorerViewImpl;
-import org.eclipse.che.ide.preferences.PreferencesManagerImpl;
-import org.eclipse.che.ide.preferences.PreferencesViewImpl;
-import org.eclipse.che.ide.projectimport.wizard.ImportWizardRegistryImpl;
-import org.eclipse.che.ide.projecttype.BlankProjectWizardRegistrar;
-import org.eclipse.che.ide.projecttype.wizard.ProjectWizardRegistryImpl;
-import org.eclipse.che.ide.theme.AppearanceViewImpl;
-import org.eclipse.che.ide.theme.ThemeAgentImpl;
-import org.eclipse.che.ide.toolbar.ToolbarPresenter;
-import org.eclipse.che.ide.toolbar.ToolbarView;
-import org.eclipse.che.ide.toolbar.ToolbarViewImpl;
-import org.eclipse.che.ide.upload.file.UploadFileView;
-import org.eclipse.che.ide.upload.file.UploadFileViewImpl;
-import org.eclipse.che.ide.upload.folder.UploadFolderFromZipView;
-import org.eclipse.che.ide.upload.folder.UploadFolderFromZipViewImpl;
-import org.eclipse.che.ide.workspace.WorkspacePresenter;
 import org.eclipse.che.ide.Resources;
-import org.eclipse.che.ide.about.AboutViewImpl;
 import org.eclipse.che.ide.actions.ActionManagerImpl;
 import org.eclipse.che.ide.actions.find.FindActionView;
-
+import org.eclipse.che.ide.actions.find.FindActionViewImpl;
 import org.eclipse.che.ide.api.action.ActionManager;
 import org.eclipse.che.ide.api.build.BuildContext;
 import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorRegistry;
 import org.eclipse.che.ide.api.extension.ExtensionGinModule;
+import org.eclipse.che.ide.api.extension.ExtensionRegistry;
 import org.eclipse.che.ide.api.filetypes.FileType;
 import org.eclipse.che.ide.api.filetypes.FileTypeRegistry;
 import org.eclipse.che.ide.api.icon.IconRegistry;
-import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriber;
 import org.eclipse.che.ide.api.keybinding.KeyBindingAgent;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.parts.ConsolePart;
@@ -100,8 +61,6 @@ import org.eclipse.che.ide.api.parts.WorkBenchView;
 import org.eclipse.che.ide.api.parts.WorkspaceAgent;
 import org.eclipse.che.ide.api.preferences.PreferencePagePresenter;
 import org.eclipse.che.ide.api.preferences.PreferencesManager;
-import org.eclipse.che.ide.api.project.wizard.ImportWizardRegistrar;
-import org.eclipse.che.ide.api.project.wizard.ImportWizardRegistry;
 import org.eclipse.che.ide.api.project.tree.TreeStructureProviderRegistry;
 import org.eclipse.che.ide.api.project.tree.generic.NodeFactory;
 import org.eclipse.che.ide.api.project.type.ProjectTemplateRegistry;
@@ -109,47 +68,93 @@ import org.eclipse.che.ide.api.project.type.ProjectTypeRegistry;
 import org.eclipse.che.ide.api.project.type.wizard.PreSelectedProjectTypeManager;
 import org.eclipse.che.ide.api.project.type.wizard.ProjectWizardRegistrar;
 import org.eclipse.che.ide.api.project.type.wizard.ProjectWizardRegistry;
+import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriber;
+import org.eclipse.che.ide.api.project.wizard.ImportWizardRegistrar;
+import org.eclipse.che.ide.api.project.wizard.ImportWizardRegistry;
 import org.eclipse.che.ide.api.selection.SelectionAgent;
 import org.eclipse.che.ide.api.theme.Theme;
 import org.eclipse.che.ide.api.theme.ThemeAgent;
+import org.eclipse.che.ide.bootstrap.DefaultIconsComponent;
+import org.eclipse.che.ide.bootstrap.FactoryComponent;
+import org.eclipse.che.ide.bootstrap.PreferencesComponent;
+import org.eclipse.che.ide.bootstrap.ProfileComponent;
+import org.eclipse.che.ide.bootstrap.ProjectTemplatesComponent;
+import org.eclipse.che.ide.bootstrap.ProjectTypeComponent;
+import org.eclipse.che.ide.bootstrap.StandartComponent;
+import org.eclipse.che.ide.bootstrap.WorkspaceComponent;
+import org.eclipse.che.ide.bootstrap.ZeroClipboardInjector;
 import org.eclipse.che.ide.build.BuildContextImpl;
+import org.eclipse.che.ide.core.Component;
+import org.eclipse.che.ide.core.ProjectStateHandler;
 import org.eclipse.che.ide.core.StandardComponentInitializer;
+import org.eclipse.che.ide.core.editor.EditorAgentImpl;
 import org.eclipse.che.ide.core.editor.EditorRegistryImpl;
 import org.eclipse.che.ide.extension.ExtensionManagerPresenter;
 import org.eclipse.che.ide.extension.ExtensionManagerView;
+import org.eclipse.che.ide.extension.ExtensionManagerViewImpl;
+import org.eclipse.che.ide.filetypes.FileTypeRegistryImpl;
 import org.eclipse.che.ide.icon.IconRegistryImpl;
 import org.eclipse.che.ide.keybinding.KeyBindingManager;
+import org.eclipse.che.ide.logger.AnalyticsEventLoggerExt;
 import org.eclipse.che.ide.logger.AnalyticsEventLoggerImpl;
+import org.eclipse.che.ide.menu.MainMenuView;
+import org.eclipse.che.ide.menu.MainMenuViewImpl;
+import org.eclipse.che.ide.menu.StatusPanelGroupView;
+import org.eclipse.che.ide.menu.StatusPanelGroupViewImpl;
+import org.eclipse.che.ide.navigation.NavigateToFileView;
 import org.eclipse.che.ide.navigation.NavigateToFileViewImpl;
 import org.eclipse.che.ide.notification.NotificationManagerImpl;
+import org.eclipse.che.ide.notification.NotificationManagerView;
+import org.eclipse.che.ide.notification.NotificationManagerViewImpl;
+import org.eclipse.che.ide.openproject.OpenProjectView;
+import org.eclipse.che.ide.openproject.OpenProjectViewImpl;
+import org.eclipse.che.ide.outline.OutlinePartPresenter;
 import org.eclipse.che.ide.outline.OutlinePartView;
 import org.eclipse.che.ide.outline.OutlinePartViewImpl;
 import org.eclipse.che.ide.part.FocusManager;
 import org.eclipse.che.ide.part.PartStackPresenter;
+import org.eclipse.che.ide.part.PartStackPresenter.PartStackEventHandler;
+import org.eclipse.che.ide.part.PartStackViewImpl;
+import org.eclipse.che.ide.part.console.ConsolePartPresenter;
 import org.eclipse.che.ide.part.console.ConsolePartView;
 import org.eclipse.che.ide.part.console.ConsolePartViewImpl;
 import org.eclipse.che.ide.part.editor.EditorPartStackPresenter;
+import org.eclipse.che.ide.part.editor.EditorPartStackView;
 import org.eclipse.che.ide.part.projectexplorer.ProjectExplorerPartPresenter;
+import org.eclipse.che.ide.part.projectexplorer.ProjectExplorerView;
+import org.eclipse.che.ide.part.projectexplorer.ProjectExplorerViewImpl;
+import org.eclipse.che.ide.preferences.PreferencesManagerImpl;
 import org.eclipse.che.ide.preferences.PreferencesView;
+import org.eclipse.che.ide.preferences.PreferencesViewImpl;
 import org.eclipse.che.ide.privacy.PrivacyPresenter;
 import org.eclipse.che.ide.projectimport.wizard.ImportProjectNotificationSubscriberImpl;
 import org.eclipse.che.ide.projectimport.wizard.ImportWizardFactory;
+import org.eclipse.che.ide.projectimport.wizard.ImportWizardRegistryImpl;
 import org.eclipse.che.ide.projectimport.zip.ZipImportWizardRegistrar;
 import org.eclipse.che.ide.projecttree.TreeStructureProviderRegistryImpl;
+import org.eclipse.che.ide.projecttype.BlankProjectWizardRegistrar;
 import org.eclipse.che.ide.projecttype.ProjectTemplateRegistryImpl;
 import org.eclipse.che.ide.projecttype.ProjectTypeRegistryImpl;
 import org.eclipse.che.ide.projecttype.wizard.PreSelectedProjectTypeManagerImpl;
 import org.eclipse.che.ide.projecttype.wizard.ProjectWizardFactory;
-
+import org.eclipse.che.ide.projecttype.wizard.ProjectWizardRegistryImpl;
 import org.eclipse.che.ide.rest.AsyncRequestLoader;
+import org.eclipse.che.ide.rest.RestContext;
+import org.eclipse.che.ide.rest.RestContextProvider;
 import org.eclipse.che.ide.selection.SelectionAgentImpl;
+import org.eclipse.che.ide.statepersistance.ActiveFilePersistenceComponent;
+import org.eclipse.che.ide.statepersistance.ActiveNodePersistentComponent;
+import org.eclipse.che.ide.statepersistance.OpenedFilesPersistenceComponent;
+import org.eclipse.che.ide.statepersistance.OpenedNodesPersistenceComponent;
+import org.eclipse.che.ide.statepersistance.PersistenceComponent;
+import org.eclipse.che.ide.statepersistance.ShowHiddenFilesPersistenceComponent;
 import org.eclipse.che.ide.texteditor.openedfiles.ListOpenedFilesView;
 import org.eclipse.che.ide.texteditor.openedfiles.ListOpenedFilesViewImpl;
 import org.eclipse.che.ide.theme.AppearancePresenter;
 import org.eclipse.che.ide.theme.AppearanceView;
+import org.eclipse.che.ide.theme.AppearanceViewImpl;
 import org.eclipse.che.ide.theme.DarkTheme;
-import org.eclipse.che.ide.toolbar.MainToolbar;
-import org.eclipse.che.ide.toolbar.ToolbarMainPresenter;
+import org.eclipse.che.ide.theme.ThemeAgentImpl;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.ide.ui.dialogs.choice.ChoiceDialog;
 import org.eclipse.che.ide.ui.dialogs.choice.ChoiceDialogFooter;
@@ -171,22 +176,37 @@ import org.eclipse.che.ide.ui.dialogs.message.MessageDialogFooter;
 import org.eclipse.che.ide.ui.dialogs.message.MessageDialogPresenter;
 import org.eclipse.che.ide.ui.dialogs.message.MessageDialogView;
 import org.eclipse.che.ide.ui.dialogs.message.MessageDialogViewImpl;
+import org.eclipse.che.ide.ui.dropdown.DropDownHeaderWidget;
+import org.eclipse.che.ide.ui.dropdown.DropDownHeaderWidgetImpl;
+import org.eclipse.che.ide.ui.dropdown.DropDownListFactory;
 import org.eclipse.che.ide.ui.loader.IdeLoader;
+import org.eclipse.che.ide.ui.toolbar.MainToolbar;
+import org.eclipse.che.ide.ui.toolbar.ToolbarMainPresenter;
+import org.eclipse.che.ide.ui.toolbar.ToolbarPresenter;
+import org.eclipse.che.ide.ui.toolbar.ToolbarView;
+import org.eclipse.che.ide.ui.toolbar.ToolbarViewImpl;
 import org.eclipse.che.ide.ui.zeroClipboard.ClipboardButtonBuilder;
 import org.eclipse.che.ide.ui.zeroClipboard.ClipboardButtonBuilderImpl;
+import org.eclipse.che.ide.upload.file.UploadFileView;
+import org.eclipse.che.ide.upload.file.UploadFileViewImpl;
+import org.eclipse.che.ide.upload.folder.UploadFolderFromZipView;
+import org.eclipse.che.ide.upload.folder.UploadFolderFromZipViewImpl;
+import org.eclipse.che.ide.util.Config;
 import org.eclipse.che.ide.util.executor.UserActivityManager;
 import org.eclipse.che.ide.websocket.MessageBus;
 import org.eclipse.che.ide.websocket.MessageBusImpl;
+import org.eclipse.che.ide.websocket.WebSocketUrl;
+import org.eclipse.che.ide.websocket.WebSocketUrlProvider;
 import org.eclipse.che.ide.workspace.PartStackPresenterFactory;
 import org.eclipse.che.ide.workspace.PartStackViewFactory;
 import org.eclipse.che.ide.workspace.WorkBenchViewImpl;
+import org.eclipse.che.ide.workspace.WorkspacePresenter;
 import org.eclipse.che.ide.workspace.WorkspaceView;
 import org.eclipse.che.ide.workspace.WorkspaceViewImpl;
-import org.eclipse.che.ide.util.Config;
-
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.inject.client.AbstractGinModule;
 import com.google.gwt.inject.client.assistedinject.GinFactoryModuleBuilder;
+import com.google.gwt.inject.client.multibindings.GinMapBinder;
 import com.google.gwt.inject.client.multibindings.GinMultibinder;
 import com.google.gwt.user.client.Window;
 import com.google.inject.Provides;
@@ -206,6 +226,8 @@ public class CoreGinModule extends AbstractGinModule {
         bind(EventBus.class).to(SimpleEventBus.class).in(Singleton.class);
         bind(AsyncRequestLoader.class).to(IdeLoader.class).in(Singleton.class);
         bind(Resources.class).in(Singleton.class);
+        bind(String.class).annotatedWith(RestContext.class).toProvider(RestContextProvider.class).in(Singleton.class);
+        bind(String.class).annotatedWith(WebSocketUrl.class).toProvider(WebSocketUrlProvider.class).in(Singleton.class);
         bind(ExtensionRegistry.class).in(Singleton.class);
         bind(StandardComponentInitializer.class).in(Singleton.class);
         bind(BuildContext.class).to(BuildContextImpl.class).in(Singleton.class);
@@ -223,6 +245,7 @@ public class CoreGinModule extends AbstractGinModule {
         bind(AnalyticsEventLogger.class).to(AnalyticsEventLoggerImpl.class).in(Singleton.class);
         bind(AnalyticsEventLoggerExt.class).to(AnalyticsEventLoggerImpl.class).in(Singleton.class);
 
+        configureComponents();
         configureProjectWizard();
         configureImportWizard();
         configurePlatformApiGwtClients();
@@ -230,6 +253,34 @@ public class CoreGinModule extends AbstractGinModule {
         configureCoreUI();
         configureEditorAPI();
         configureProjectTree();
+
+        GinMultibinder<PersistenceComponent> componentMultibinder = GinMultibinder.newSetBinder(binder(), PersistenceComponent.class);
+        componentMultibinder.addBinding().to(ShowHiddenFilesPersistenceComponent.class);
+        componentMultibinder.addBinding().to(OpenedFilesPersistenceComponent.class);
+        componentMultibinder.addBinding().to(ActiveFilePersistenceComponent.class);
+        componentMultibinder.addBinding().to(OpenedNodesPersistenceComponent.class);
+        componentMultibinder.addBinding().to(ActiveNodePersistentComponent.class);
+
+        GinMapBinder<String, PersistenceComponent> projectTreeComponentBinder =
+                GinMapBinder.newMapBinder(binder(), String.class, PersistenceComponent.class);
+        projectTreeComponentBinder.addBinding("openedNodes").to(OpenedNodesPersistenceComponent.class);
+        projectTreeComponentBinder.addBinding("activeNode").to(ActiveNodePersistentComponent.class);
+        projectTreeComponentBinder.addBinding("showHiddenFiles").to(ShowHiddenFilesPersistenceComponent.class);
+    }
+
+    private void configureComponents() {
+        GinMapBinder<String, Component> mapBinder =
+                GinMapBinder.newMapBinder(binder(), String.class, Component.class);
+        mapBinder.addBinding("Default Icons").to(DefaultIconsComponent.class);
+        mapBinder.addBinding("ZeroClipboard").to(ZeroClipboardInjector.class);
+        mapBinder.addBinding("Preferences").to(PreferencesComponent.class);
+        mapBinder.addBinding("Workspace").to(WorkspaceComponent.class);
+        mapBinder.addBinding("Profile").to(ProfileComponent.class);
+        mapBinder.addBinding("Project Types").to(ProjectTypeComponent.class);
+        mapBinder.addBinding("Project Templates").to(ProjectTemplatesComponent.class);
+        mapBinder.addBinding("Factory").to(FactoryComponent.class);
+        mapBinder.addBinding("Project State Handler").to(ProjectStateHandler.class);
+        mapBinder.addBinding("Standard components").to(StandartComponent.class);
     }
 
     private void configureProjectWizard() {
@@ -301,6 +352,10 @@ public class CoreGinModule extends AbstractGinModule {
         bind(ToolbarView.class).to(ToolbarViewImpl.class);
         bind(ToolbarPresenter.class).annotatedWith(MainToolbar.class).to(ToolbarMainPresenter.class).in(Singleton.class);
 
+        //configure drop down menu
+        install(new GinFactoryModuleBuilder().implement(DropDownHeaderWidget.class, DropDownHeaderWidgetImpl.class)
+                                             .build(DropDownListFactory.class));
+
         bind(NotificationManagerView.class).to(NotificationManagerViewImpl.class).in(Singleton.class);
 
         bind(EditorPartStackView.class);
@@ -326,7 +381,6 @@ public class CoreGinModule extends AbstractGinModule {
         bind(UploadFolderFromZipView.class).to(UploadFolderFromZipViewImpl.class);
         bind(PreferencesView.class).to(PreferencesViewImpl.class).in(Singleton.class);
         bind(NavigateToFileView.class).to(NavigateToFileViewImpl.class).in(Singleton.class);
-        bind(AboutView.class).to(AboutViewImpl.class);
         bind(ListOpenedFilesView.class).to(ListOpenedFilesViewImpl.class);
 
         bind(ExtensionManagerView.class).to(ExtensionManagerViewImpl.class).in(Singleton.class);
@@ -361,15 +415,16 @@ public class CoreGinModule extends AbstractGinModule {
 
     @Provides
     @Singleton
-    protected PartStackPresenter.PartStackEventHandler providePartStackEventHandler(FocusManager partAgentPresenter) {
+    protected PartStackEventHandler providePartStackEventHandler(FocusManager partAgentPresenter) {
         return partAgentPresenter.getPartStackHandler();
     }
 
     @Provides
     @Named("restContext")
     @Singleton
+    @Deprecated
     protected String provideDefaultRestContext() {
-        return "/api";
+        return Config.getRestContext();
     }
 
     @Provides
@@ -382,8 +437,9 @@ public class CoreGinModule extends AbstractGinModule {
     @Provides
     @Named("websocketUrl")
     @Singleton
+    @Deprecated
     protected String provideDefaultWebsocketUrl() {
         boolean isSecureConnection = Window.Location.getProtocol().equals("https:");
-        return (isSecureConnection ? "wss://" : "ws://") + Window.Location.getHost() + "/api/ws/" + Config.getWorkspaceId();
+        return (isSecureConnection ? "wss://" : "ws://") + Window.Location.getHost() + Config.getRestContext() + "/ws/" + Config.getWorkspaceId();
     }
 }

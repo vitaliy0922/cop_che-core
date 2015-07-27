@@ -11,7 +11,6 @@
 package org.eclipse.che.api.account.server.dao;
 
 import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 
@@ -103,61 +102,6 @@ public interface AccountDao {
     void removeMember(Member member) throws NotFoundException, ServerException, ConflictException;
 
     /**
-     * Adds new subscription to account that already exists in persistent layer
-     *
-     * @param subscription
-     *         subscription POJO
-     */
-    void addSubscription(Subscription subscription) throws NotFoundException, ConflictException, ServerException;
-
-    /**
-     * Get subscription from persistent layer
-     *
-     * @param subscriptionId
-     *         subscription identifier
-     * @return Subscription POJO
-     * @throws org.eclipse.che.api.core.NotFoundException
-     *         when subscription doesn't exist
-     */
-    Subscription getSubscriptionById(String subscriptionId) throws NotFoundException, ServerException;
-
-    /**
-     * Gets list of active subscriptions related to given account.
-     *
-     * @param accountId
-     *         account id
-     * @return list of subscriptions, or empty list if no subscriptions found
-     */
-    List<Subscription> getActiveSubscriptions(String accountId) throws NotFoundException, ServerException;
-
-    /**
-     * Gets active subscription with given service related to given account.
-     *
-     * @param accountId
-     *         account id
-     * @param serviceId
-     *         service id
-     * @return subscription or {@code null} if no subscription found
-     */
-    Subscription getActiveSubscription(String accountId, String serviceId) throws ServerException, NotFoundException;
-
-    /**
-     * Update existing subscription.
-     *
-     * @param subscription
-     *         new subscription
-     */
-    void updateSubscription(Subscription subscription) throws NotFoundException, ServerException;
-
-    /**
-     * Remove subscription related to existing account
-     *
-     * @param subscriptionId
-     *         subscription identifier for removal
-     */
-    void removeSubscription(String subscriptionId) throws NotFoundException, ServerException;
-
-    /**
      * Gets list of existing in persistent layer members related to given account
      *
      * @param accountId
@@ -174,13 +118,4 @@ public interface AccountDao {
      * @return list of accounts, or empty list if no accounts found
      */
     List<Member> getByMember(String userId) throws NotFoundException, ServerException;
-
-    SubscriptionQueryBuilder getSubscriptionQueryBuilder();
-
-    /**
-     * Get all accounts which are locked after RAM runner resources was exceeded.
-     *
-     * @return all locked accounts
-     */
-    List<Account> getAccountsWithLockedResources() throws ServerException, ForbiddenException;
 }

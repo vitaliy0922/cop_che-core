@@ -44,14 +44,27 @@ public class FolderEntry extends VirtualFileEntry {
         }
     };
 
+    private static final VirtualFileFilter FILE_FOLDER_FILTER = new VirtualFileFilter() {
+        @Override
+        public boolean accept(VirtualFile file) {
+            return (file.isFile() || file.isFolder());
+        }
+    };
+
     public FolderEntry(String workspace, VirtualFile virtualFile) {
         super(workspace, virtualFile);
     }
 
+    @Override
     public FolderEntry copyTo(String newParent) throws NotFoundException, ForbiddenException, ConflictException, ServerException {
+        return copyTo(newParent, getName(), false);
+    }
+
+    @Override
+    public FolderEntry copyTo(String newParent, String name, boolean overWrite) throws NotFoundException, ForbiddenException, ConflictException, ServerException {
         final VirtualFile vf = getVirtualFile();
         final MountPoint mp = vf.getMountPoint();
-        return new FolderEntry(getWorkspace(), vf.copyTo(mp.getVirtualFile(newParent)));
+        return new FolderEntry(getWorkspace(), vf.copyTo(mp.getVirtualFile(newParent),name,overWrite));
     }
 
     /**
@@ -114,6 +127,16 @@ public class FolderEntry extends VirtualFileEntry {
             children.add(new FolderEntry(getWorkspace(), vfChildren.next()));
         }
         return children;
+    }
+
+    /**
+     * Gets child folders and files of this folder. If current user doesn't have read access to some child they aren't added in result list.
+     *
+     * @throws ServerException
+     *         if an error occurs
+     */
+    public List<VirtualFileEntry> getChildFoldersFiles() throws ServerException {
+        return getChildren(FILE_FOLDER_FILTER);
     }
 
     List<VirtualFileEntry> getChildren(VirtualFileFilter filter) throws ServerException {

@@ -11,7 +11,6 @@
 package org.eclipse.che.ide.core.editor;
 
 import org.eclipse.che.ide.CoreLocalizationConstant;
-import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorInitException;
 import org.eclipse.che.ide.api.editor.EditorInput;
@@ -21,6 +20,8 @@ import org.eclipse.che.ide.api.editor.EditorProvider;
 import org.eclipse.che.ide.api.editor.EditorRegistry;
 import org.eclipse.che.ide.api.event.ActivePartChangedEvent;
 import org.eclipse.che.ide.api.event.ActivePartChangedHandler;
+import org.eclipse.che.ide.api.event.DeleteModuleEvent;
+import org.eclipse.che.ide.api.event.DeleteModuleEventHandler;
 import org.eclipse.che.ide.api.event.FileEvent;
 import org.eclipse.che.ide.api.event.FileEvent.FileOperation;
 import org.eclipse.che.ide.api.event.FileEventHandler;
@@ -39,6 +40,7 @@ import org.eclipse.che.ide.api.parts.WorkspaceAgent;
 import org.eclipse.che.ide.api.project.tree.VirtualFile;
 import org.eclipse.che.ide.api.project.tree.generic.FolderNode;
 import org.eclipse.che.ide.api.project.tree.generic.ItemNode;
+import org.eclipse.che.ide.api.project.tree.generic.ProjectNode;
 import org.eclipse.che.ide.api.texteditor.HasReadOnlyProperty;
 import org.eclipse.che.ide.collections.Array;
 import org.eclipse.che.ide.collections.Collections;
@@ -145,6 +147,24 @@ public class EditorAgentImpl implements EditorAgent {
                 }
             }
         });
+        eventBus.addHandler(DeleteModuleEvent.TYPE, new DeleteModuleEventHandler() {
+            @Override
+            public void onModuleDeleted(DeleteModuleEvent event) {
+                ProjectNode projectNode = event.getModule();
+                closeAllFilesByModule(projectNode);
+            }
+        });
+    }
+
+    private void closeAllFilesByModule(ProjectNode projectNode) {
+        for (EditorPartPresenter editor : getOpenedEditors().getValues().asIterable()) {
+            VirtualFile virtualFile = editor.getEditorInput().getFile();
+            ProjectNode projectParent = virtualFile.getProject();
+
+            if (projectParent.equals(projectNode)) {
+                eventBus.fireEvent(new FileEvent(virtualFile, CLOSE));
+            }
+        }
     }
 
     private void closeAllFilesByPath(String path) {
@@ -226,6 +246,10 @@ public class EditorAgentImpl implements EditorAgent {
         //call close() method
         editor.close(false);
 
+        if (activeEditor == null) {
+            return;
+        }
+
         String activeFilePath = activeEditor.getEditorInput().getFile().getPath();
         if (activeFilePath.equals(closedFilePath)) {
             activeEditor = null;
@@ -273,6 +297,17 @@ public class EditorAgentImpl implements EditorAgent {
                 }
             }
         });
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void updateEditorNode(@Nonnull String path, @Nonnull VirtualFile virtualFile) {
+        final EditorPartPresenter editor = getOpenedEditors().remove(path);
+        if (editor != null) {
+            editor.getEditorInput().setFile(virtualFile);
+            getOpenedEditors().put(virtualFile.getPath(), editor);
+            editor.onFileChanged();
+        }
     }
 
     /** {@inheritDoc} */

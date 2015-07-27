@@ -13,19 +13,22 @@ package org.eclipse.che.api.runner;
 import org.eclipse.che.api.builder.dto.BuildTaskDescriptor;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.rest.OutputProvider;
 import org.eclipse.che.api.core.rest.shared.dto.Link;
 import org.eclipse.che.api.core.util.Cancellable;
 import org.eclipse.che.api.core.util.ValueHolder;
-import org.eclipse.che.api.runner.dto.RunnerMetric;
-import org.eclipse.che.api.runner.internal.Constants;
 import org.eclipse.che.api.runner.dto.ApplicationProcessDescriptor;
 import org.eclipse.che.api.runner.dto.RunRequest;
-
+import org.eclipse.che.api.runner.dto.RunnerMetric;
+import org.eclipse.che.api.runner.internal.Constants;
+import org.eclipse.che.api.runner.internal.RunnerEvent;
 import org.eclipse.che.dto.server.DtoFactory;
 
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +47,10 @@ public class RunQueueTask implements Cancellable {
     private final RunRequest                       request;
     private final Future<RemoteRunnerProcess>      future;
     private final ValueHolder<BuildTaskDescriptor> buildTaskHolder;
+    private final EventService                     eventService;
     private final long                             created;
     private final long                             waitingTimeout;
+    private final String                           originalEnvironmentId;
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private Long stopTime;
 
@@ -64,12 +69,16 @@ public class RunQueueTask implements Cancellable {
                  long waitingTimeout,
                  Future<RemoteRunnerProcess> future,
                  ValueHolder<BuildTaskDescriptor> buildTaskHolder,
+                 EventService eventService,
+                 String originalEnvironmentId,
                  UriBuilder uriBuilder) {
         this.id = id;
         this.future = future;
         this.request = request;
         this.waitingTimeout = waitingTimeout;
         this.buildTaskHolder = buildTaskHolder;
+        this.eventService = eventService;
+        this.originalEnvironmentId = originalEnvironmentId;
         this.uriBuilder = uriBuilder;
         created = System.currentTimeMillis();
     }
@@ -113,13 +122,13 @@ public class RunQueueTask implements Cancellable {
                 links.add(dtoFactory.createDto(Link.class)
                                     .withRel(Constants.LINK_REL_GET_STATUS)
                                     .withHref(getUriBuilder().path(RunnerService.class, "getStatus")
-                                                             .build(request.getWorkspace(), id).toString()).withMethod("GET")
+                                                             .build(request.getWorkspace(), id).toString()).withMethod(HttpMethod.GET)
                                     .withProduces(MediaType.APPLICATION_JSON));
                 links.add(dtoFactory.createDto(Link.class)
                                     .withRel(Constants.LINK_REL_STOP)
                                     .withHref(getUriBuilder().path(RunnerService.class, "stop")
                                                              .build(request.getWorkspace(), id).toString())
-                                    .withMethod("POST")
+                                    .withMethod(HttpMethod.POST)
                                     .withProduces(MediaType.APPLICATION_JSON));
                 final List<RunnerMetric> runStats = new ArrayList<>(2);
                 runStats.add(dtoFactory.createDto(RunnerMetric.class).withName(RunnerMetric.WAITING_TIME_LIMIT)
@@ -165,6 +174,9 @@ public class RunQueueTask implements Cancellable {
                 descriptor.setBuildStats(buildTaskDescriptor.getBuildStats());
             }
         }
+        //we set this id to detect environment scope on client side
+        descriptor.setEnvironmentId(originalEnvironmentId);
+
         return descriptor;
     }
 
@@ -226,6 +238,7 @@ public class RunQueueTask implements Cancellable {
             remoteProcess.stop();
         } else {
             future.cancel(true);
+            eventService.publish(RunnerEvent.canceledEvent(id, request.getWorkspace(), request.getProject()));
         }
     }
 

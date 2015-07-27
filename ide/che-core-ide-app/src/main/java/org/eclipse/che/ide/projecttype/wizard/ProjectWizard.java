@@ -10,13 +10,18 @@
  *******************************************************************************/
 package org.eclipse.che.ide.projecttype.wizard;
 
+import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
+import com.google.web.bindery.event.shared.EventBus;
+
 import org.eclipse.che.api.core.rest.shared.dto.ServiceError;
 import org.eclipse.che.api.project.gwt.client.ProjectServiceClient;
+import org.eclipse.che.api.project.shared.Constants;
 import org.eclipse.che.api.project.shared.dto.ImportProject;
 import org.eclipse.che.api.project.shared.dto.ImportResponse;
 import org.eclipse.che.api.project.shared.dto.NewProject;
 import org.eclipse.che.api.project.shared.dto.ProjectDescriptor;
-import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.event.OpenProjectEvent;
@@ -27,11 +32,9 @@ import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.rest.AsyncRequestCallback;
 import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.Unmarshallable;
+import org.eclipse.che.ide.ui.dialogs.CancelCallback;
+import org.eclipse.che.ide.ui.dialogs.ConfirmCallback;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
-import com.google.gwt.user.client.rpc.AsyncCallback;
-import com.google.inject.Inject;
-import com.google.inject.assistedinject.Assisted;
-import com.google.web.bindery.event.shared.EventBus;
 
 import javax.annotation.Nonnull;
 
@@ -118,10 +121,31 @@ public class ProjectWizard extends AbstractWizard<ImportProject> {
         } else if (mode == CREATE_MODULE) {
             createModule(callback);
         } else if (mode == UPDATE) {
-            updateProject(callback);
+            updateProject(new UpdateCallback(callback));
         } else if (mode == IMPORT) {
             importProject(callback);
         }
+    }
+
+    private void doSaveAsBlank(final CompleteCallback callback) {
+        final NewProject project = dataObject.getProject();
+        project.setType(Constants.BLANK_ID);
+        final Unmarshallable<ProjectDescriptor> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(ProjectDescriptor.class);
+        projectServiceClient.updateProject(project.getName(), project, new AsyncRequestCallback<ProjectDescriptor>(unmarshaller) {
+            @Override
+            protected void onSuccess(ProjectDescriptor result) {
+                // just re-open project if it's already opened
+                ProjectWizard.this.eventBus.fireEvent(new OpenProjectEvent(result.getName()));
+                callback.onCompleted();
+            }
+
+            @Override
+            protected void onFailure(Throwable exception) {
+                final String message =
+                        ProjectWizard.this.dtoFactory.createDtoFromJson(exception.getMessage(), ServiceError.class).getMessage();
+                callback.onFailure(new Exception(message));
+            }
+        });
     }
 
     private void createProject(final CompleteCallback callback) {
@@ -166,7 +190,7 @@ public class ProjectWizard extends AbstractWizard<ImportProject> {
         final NewProject project = dataObject.getProject();
         final Unmarshallable<ImportResponse> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(ImportResponse.class);
         projectServiceClient.importProject(
-                project.getName(), true, dataObject, new AsyncRequestCallback<ImportResponse>(unmarshaller) {
+                project.getName(), false, dataObject, new AsyncRequestCallback<ImportResponse>(unmarshaller) {
                     @Override
                     protected void onSuccess(ImportResponse result) {
                         eventBus.fireEvent(new OpenProjectEvent(result.getProjectDescriptor().getName()));
@@ -234,5 +258,37 @@ public class ProjectWizard extends AbstractWizard<ImportProject> {
                 callback.onFailure(exception);
             }
         });
+    }
+
+    public class UpdateCallback implements CompleteCallback {
+        private final CompleteCallback callback;
+
+        public UpdateCallback(CompleteCallback callback) {
+            this.callback = callback;
+        }
+
+        @Override
+        public void onCompleted() {
+            callback.onCompleted();
+        }
+
+        @Override
+        public void onFailure(Throwable e) {
+            dialogFactory.createConfirmDialog("Project Configuration Fail",
+                                              "Configure project type as BLANK? You can re-configure it later",
+
+                                              new ConfirmCallback() {
+                                                  @Override
+                                                  public void accepted() {
+                                                      doSaveAsBlank(callback);
+                                                  }
+                                              },
+                                              new CancelCallback() {
+                                                  @Override
+                                                  public void cancelled() {
+                                                      callback.onCompleted();
+                                                  }
+                                              }).show();
+        }
     }
 }

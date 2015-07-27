@@ -20,14 +20,12 @@ import org.eclipse.che.api.project.server.type.ProjectType;
 import org.eclipse.che.api.project.server.type.ProjectTypeRegistry;
 import org.eclipse.che.api.project.shared.dto.ProjectUpdate;
 import org.eclipse.che.api.project.shared.dto.SourceEstimation;
-
 import org.eclipse.che.api.vfs.server.VirtualFile;
 import org.eclipse.che.api.vfs.server.VirtualFileSystemRegistry;
 import org.eclipse.che.api.vfs.server.VirtualFileSystemUser;
 import org.eclipse.che.api.vfs.server.VirtualFileSystemUserContext;
 import org.eclipse.che.api.vfs.server.impl.memory.MemoryFileSystemProvider;
 import org.eclipse.che.api.vfs.server.impl.memory.MemoryMountPoint;
-
 import org.eclipse.che.dto.server.DtoFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -35,6 +33,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.*;
+
+import javax.ws.rs.core.MediaType;
 
 /**
  * @author andrew00x
@@ -202,7 +202,7 @@ public class ProjectTest {
         Project myProject = pm.getProject("my_ws", "my_project");
         long modificationDate1 = myProject.getModificationDate();
         Thread.sleep(1000);
-        myProject.getBaseFolder().createFile("test.txt", "test".getBytes(), "text/plain");
+        myProject.getBaseFolder().createFile("test.txt", "test".getBytes(), MediaType.TEXT_PLAIN);
         long modificationDate2 = myProject.getModificationDate();
         Assert.assertTrue(modificationDate2 > modificationDate1);
     }
@@ -595,6 +595,114 @@ public class ProjectTest {
         Assert.assertEquals(myProject.getModules().get().iterator().next(), "test");
 
     }
+
+
+    @Test
+    public void testModulePathShouldBeAdded() throws Exception {
+        String modulePath = "newModule";
+        pm.getProjectTypeRegistry().registerProjectType(new ProjectType("testModule", "my type", true, false) {
+        });
+
+        Project myProject = pm.getProject("my_ws", "my_project");
+        myProject.updateConfig(new ProjectConfig("my proj", "testModule"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 0);
+
+        myProject.getModules().add(modulePath);
+
+        Assert.assertTrue(myProject.getModules().get().contains(modulePath));
+    }
+
+
+    @Test
+    public void testModulePathShouldBeRemoved() throws Exception {
+        String modulePath = "newModule";
+        pm.getProjectTypeRegistry().registerProjectType(new ProjectType("testModule", "my type", true, false) {
+        });
+
+        Project myProject = pm.getProject("my_ws", "my_project");
+        myProject.updateConfig(new ProjectConfig("my proj", "testModule"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 0);
+
+        myProject.getModules().add(modulePath);
+
+        Assert.assertTrue(myProject.getModules().get().contains(modulePath));
+
+        myProject.getModules().remove(modulePath);
+        Assert.assertFalse(myProject.getModules().get().contains(modulePath));
+    }
+
+
+    @Test
+    public void testModuleShouldBeUpdated() throws Exception {
+        String modulePath = "newModule";
+        String innerModulePath1 = "newModule/innerModule1";
+        String innerModulePath2 = "newModule/innerModule2";
+
+        String newModulePath = "modulePathUpdated";
+
+        pm.getProjectTypeRegistry().registerProjectType(new ProjectType("testModule", "my type", true, false) {
+        });
+
+        Project myProject = pm.getProject("my_ws", "my_project");
+        myProject.updateConfig(new ProjectConfig("my proj", "testModule"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 0);
+
+        myProject.getModules().add(modulePath);
+        myProject.getModules().add(innerModulePath1);
+        myProject.getModules().add(innerModulePath2);
+
+        Assert.assertTrue(myProject.getModules().get().contains(modulePath));
+        Assert.assertTrue(myProject.getModules().get().contains(innerModulePath1));
+        Assert.assertTrue(myProject.getModules().get().contains(innerModulePath2));
+
+        myProject.getModules().update(modulePath, newModulePath);
+
+        Assert.assertTrue(myProject.getModules().get().contains(newModulePath));
+        Assert.assertTrue(myProject.getModules().get().contains("modulePathUpdated/innerModule1"));
+        Assert.assertTrue(myProject.getModules().get().contains("modulePathUpdated/innerModule2"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 3);
+    }
+
+
+    @Test
+    public void testModuleShouldBeUpdated2() throws Exception {
+        String modulePath = "newModule";
+        String innerModulePath1 = "newModule/innerModule1";
+        String innerModulePath2 = "newModule/innerModule2";
+
+        String newInnerModulePath1 = "newModule/innerModule1_1";
+        String newModulePath = "modulePathUpdated";
+
+        pm.getProjectTypeRegistry().registerProjectType(new ProjectType("testModule", "my type", true, false) {
+        });
+
+        Project myProject = pm.getProject("my_ws", "my_project");
+        myProject.updateConfig(new ProjectConfig("my proj", "testModule"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 0);
+
+        myProject.getModules().add(modulePath);
+        myProject.getModules().add(innerModulePath1);
+        myProject.getModules().add(innerModulePath2);
+
+        Assert.assertTrue(myProject.getModules().get().contains(modulePath));
+        Assert.assertTrue(myProject.getModules().get().contains(innerModulePath1));
+        Assert.assertTrue(myProject.getModules().get().contains(innerModulePath2));
+
+        myProject.getModules().update(innerModulePath1, newInnerModulePath1);
+        myProject.getModules().update(modulePath, newModulePath);
+
+        Assert.assertTrue(myProject.getModules().get().contains("modulePathUpdated/innerModule1_1"));
+        Assert.assertTrue(myProject.getModules().get().contains("modulePathUpdated"));
+        Assert.assertTrue(myProject.getModules().get().contains("modulePathUpdated/innerModule2"));
+
+        Assert.assertEquals(myProject.getModules().get().size(), 3);
+    }
+
 
     @Test
     public void testAddFolderAndProjectAsAModule() throws Exception {

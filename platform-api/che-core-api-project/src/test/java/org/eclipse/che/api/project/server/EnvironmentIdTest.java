@@ -22,7 +22,7 @@ public class EnvironmentIdTest {
     @Test
     public void testEnvironmentIdNoCategoryToString() {
         EnvironmentId id = new EnvironmentId(EnvironmentId.Scope.project, "env");
-        Assert.assertEquals(id.toString(), "project://env");
+        Assert.assertEquals(id.toString(), "project:/env");
     }
 
     @Test
@@ -60,7 +60,7 @@ public class EnvironmentIdTest {
 
     @Test(expectedExceptions = {IllegalArgumentException.class})
     public void testEnvironmentIdInvalidFormat() {
-        String fqn = "system:/Tomcat7";
+        String fqn = "system: Tomcat7";
         EnvironmentId id = EnvironmentId.parse(fqn);
         Assert.assertEquals(id.getScope(), EnvironmentId.Scope.system);
         Assert.assertEquals(id.getCategory(), "Java/Web");

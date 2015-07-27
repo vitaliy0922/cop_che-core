@@ -17,7 +17,9 @@ import org.eclipse.che.ide.collections.Array;
 import org.eclipse.che.ide.collections.Collections;
 import org.eclipse.che.ide.rest.AsyncRequestCallback;
 import org.eclipse.che.test.GwtReflectionUtils;
+import com.google.gwt.event.shared.EventHandler;
 import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.web.bindery.event.shared.Event;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -38,6 +40,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -120,6 +123,30 @@ public class ProjectNodeTest extends BaseNodeTest {
 
         verify(projectServiceClient).delete(eq(ITEM_PATH), Matchers.<AsyncRequestCallback<Void>>anyObject());
         verify(callback).onDeleted();
+        verify(eventBus, times(2)).fireEvent(Matchers.<Event<EventHandler>>anyObject());
+    }
+
+    @Test
+    public void moduleShouldBeDeletedSuccessfuly() throws Exception {
+        ProjectNode parentOfParent = mock(ProjectNode.class);
+        when(parentProjectNode.getParent()).thenReturn((TreeNode)parentOfParent);
+
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                Object[] arguments = invocation.getArguments();
+                AsyncRequestCallback<Void> callback = (AsyncRequestCallback<Void>)arguments[1];
+                GwtReflectionUtils.callOnSuccess(callback, (Void)null);
+                return callback;
+            }
+        }).when(projectServiceClient).delete(anyString(), (AsyncRequestCallback<Void>)anyObject());
+        DeleteCallback callback = mock(DeleteCallback.class);
+
+        projectNode.delete(callback);
+
+        verify(projectServiceClient).delete(eq(ITEM_PATH), Matchers.<AsyncRequestCallback<Void>>anyObject());
+        verify(callback).onDeleted();
+        verify(eventBus, times(2)).fireEvent(Matchers.<Event<EventHandler>>anyObject());
     }
 
     @Test
@@ -151,7 +178,7 @@ public class ProjectNodeTest extends BaseNodeTest {
         ItemReference fileItem = mock(ItemReference.class);
         when(fileItem.getType()).thenReturn("file");
 
-        projectNode.createChildNode(fileItem);
+        projectNode.createChildNode(fileItem, null);
 
         verify(treeStructure).newFileNode(eq(projectNode), eq(fileItem));
     }
@@ -161,7 +188,7 @@ public class ProjectNodeTest extends BaseNodeTest {
         ItemReference folderItem = mock(ItemReference.class);
         when(folderItem.getType()).thenReturn("folder");
 
-        projectNode.createChildNode(folderItem);
+        projectNode.createChildNode(folderItem, null);
 
         verify(treeStructure).newFolderNode(eq(projectNode), eq(folderItem));
     }
@@ -171,7 +198,7 @@ public class ProjectNodeTest extends BaseNodeTest {
         ItemReference folderItem = mock(ItemReference.class);
         when(folderItem.getType()).thenReturn("project");
 
-        projectNode.createChildNode(folderItem);
+        projectNode.createChildNode(folderItem, Collections.<ProjectDescriptor>createArray());
 
         verify(treeStructure).newFolderNode(eq(projectNode), eq(folderItem));
     }

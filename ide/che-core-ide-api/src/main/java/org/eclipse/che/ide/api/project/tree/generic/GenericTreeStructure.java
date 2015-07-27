@@ -21,6 +21,7 @@ import org.eclipse.che.ide.api.project.tree.TreeSettings;
 import org.eclipse.che.ide.collections.Array;
 import org.eclipse.che.ide.collections.Collections;
 import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
+
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.web.bindery.event.shared.EventBus;
 
@@ -90,21 +91,16 @@ public class GenericTreeStructure implements TreeStructure {
                     }
                 }
 
+                if (project == null) {
+                    callback.onFailure(new IllegalStateException("ProjectNode not found"));
+                    return;
+                }
+
                 String p = path;
                 if (path.startsWith("/")) {
                     p = path.substring(1);
                 }
-                getNodeByPathRecursively(project, p, project.getId().length() + 1, new AsyncCallback<TreeNode<?>>() {
-                    @Override
-                    public void onSuccess(TreeNode<?> result) {
-                        callback.onSuccess(result);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable caught) {
-                        callback.onFailure(caught);
-                    }
-                });
+                getNodeByPathRecursively(project, p, project.getId().length() + 1, callback);
             }
 
             @Override
@@ -121,16 +117,25 @@ public class GenericTreeStructure implements TreeStructure {
             public void onSuccess(TreeNode<?> result) {
                 for (TreeNode<?> childNode : result.getChildren().asIterable()) {
                     if (path.startsWith(childNode.getId(), offset)) {
+
                         final int nextOffset = offset + childNode.getId().length() + 1;
-                        if (nextOffset > path.length()) {
+
+                        if (nextOffset - 1 == path.length()) {
                             callback.onSuccess(childNode);
                         } else {
-                            getNodeByPathRecursively(childNode, path, nextOffset, callback);
+
+                            int indexNextNodeSlash = path.indexOf("/", nextOffset - 1);
+
+                            if (indexNextNodeSlash == nextOffset - 1) {
+                                getNodeByPathRecursively(childNode, path, nextOffset, callback);
+                            } else {//very similar path, f.e. /com/u but we need another /com/ua, we should get next child of com
+                                continue;
+                            }
                         }
                         return;
                     }
                 }
-                callback.onSuccess(null);
+                callback.onFailure(new IllegalStateException("Node not found"));
             }
 
             @Override
@@ -149,6 +154,19 @@ public class GenericTreeStructure implements TreeStructure {
      */
     public ProjectNode newProjectNode(@Nonnull ProjectDescriptor data) {
         return getNodeFactory().newProjectNode(null, data, this);
+    }
+
+    /**
+     * Creates a new {@link ModuleNode} owned by this tree with the specified associated {@code data}.
+     *
+     * @param parent
+     *         the parent node
+     * @param data
+     *         the associated {@link ProjectDescriptor}
+     * @return a new {@link ModuleNode}
+     */
+    public ModuleNode newModuleNode(@Nonnull TreeNode parent, @Nonnull ProjectDescriptor data) {
+        return getNodeFactory().newModuleNode(parent, data, this);
     }
 
     /**

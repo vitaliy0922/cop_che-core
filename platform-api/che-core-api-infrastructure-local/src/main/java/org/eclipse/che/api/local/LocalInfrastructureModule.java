@@ -15,7 +15,6 @@ import com.google.inject.Provides;
 
 import org.eclipse.che.api.account.server.dao.Account;
 import org.eclipse.che.api.account.server.dao.AccountDao;
-import org.eclipse.che.api.account.server.dao.Subscription;
 import org.eclipse.che.api.auth.CookiesTokenExtractor;
 import org.eclipse.che.api.auth.InMemoryTokenManager;
 import org.eclipse.che.api.auth.LocalSessionInvalidationHandler;
@@ -25,6 +24,7 @@ import org.eclipse.che.api.auth.TokenGenerator;
 import org.eclipse.che.api.auth.TokenInvalidationHandler;
 import org.eclipse.che.api.auth.TokenManager;
 import org.eclipse.che.api.auth.UserProvider;
+
 import org.eclipse.che.api.factory.FactoryStore;
 import org.eclipse.che.api.user.server.TokenValidator;
 import org.eclipse.che.api.user.server.dao.PreferenceDao;
@@ -83,12 +83,6 @@ public class LocalInfrastructureModule extends AbstractModule {
         return members;
     }
 
-    @Provides
-    @Named("codenvy.local.infrastructure.account.subscriptions")
-    Set<Subscription> subscriptions() {
-        return Collections.emptySet();
-    }
-
     // AccountDao ~~~
 
 
@@ -128,9 +122,9 @@ public class LocalInfrastructureModule extends AbstractModule {
     Set<User> users() {
         final Set<User> users = new HashSet<>(1);
         final User user = new User().withId("codenvy")
-                                    .withEmail("codenvy@codenvy.com")
+                                    .withEmail("che@eclipse.org")
                                     .withPassword("secret");
-        user.getAliases().add("codenvy@codenvy.com");
+        user.getAliases().add("che@eclipse.org");
         users.add(user);
         return users;
     }

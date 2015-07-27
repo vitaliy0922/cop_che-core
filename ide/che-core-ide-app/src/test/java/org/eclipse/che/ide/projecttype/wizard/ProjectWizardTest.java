@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.eclipse.che.ide.projecttype.wizard;
 
+import com.google.web.bindery.event.shared.Event;
+import com.google.web.bindery.event.shared.EventBus;
+
 import org.eclipse.che.api.core.rest.shared.dto.ServiceError;
 import org.eclipse.che.api.project.gwt.client.ProjectServiceClient;
 import org.eclipse.che.api.project.shared.dto.ImportProject;
@@ -24,13 +27,11 @@ import org.eclipse.che.ide.api.wizard.Wizard;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.rest.AsyncRequestCallback;
 import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
-
-import org.eclipse.che.ide.projecttype.wizard.ProjectWizard;
+import org.eclipse.che.ide.ui.dialogs.CancelCallback;
+import org.eclipse.che.ide.ui.dialogs.ConfirmCallback;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
+import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmDialog;
 import org.eclipse.che.test.GwtReflectionUtils;
-import com.google.web.bindery.event.shared.Event;
-import com.google.web.bindery.event.shared.EventBus;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,6 +89,9 @@ public class ProjectWizardTest {
     private NewProject               newProject;
     @Mock
     private Wizard.CompleteCallback  completeCallback;
+    @Mock
+    private ConfirmDialog            confirmDialog;
+
 
     private ProjectWizard wizard;
 
@@ -95,6 +99,7 @@ public class ProjectWizardTest {
     public void setUp() {
         when(newProject.getName()).thenReturn(PROJECT_NAME);
         when(importProject.getProject()).thenReturn(newProject);
+        when(dialogFactory.createConfirmDialog(anyString(),anyString(),Matchers.<ConfirmCallback>anyObject(), Matchers.<CancelCallback>anyObject())).thenReturn(confirmDialog);
     }
 
     @Test
@@ -133,7 +138,7 @@ public class ProjectWizardTest {
 
         wizard.complete(completeCallback);
 
-        verify(projectServiceClient).importProject(eq(PROJECT_NAME), eq(true), eq(importProject), importCallbackCaptor.capture());
+        verify(projectServiceClient).importProject(eq(PROJECT_NAME), eq(false), eq(importProject), importCallbackCaptor.capture());
 
         ImportResponse importResponse = mock(ImportResponse.class);
         when(importResponse.getProjectDescriptor()).thenReturn(mock(ProjectDescriptor.class));
@@ -151,7 +156,7 @@ public class ProjectWizardTest {
 
         wizard.complete(completeCallback);
 
-        verify(projectServiceClient).importProject(eq(PROJECT_NAME), eq(true), eq(importProject), importCallbackCaptor.capture());
+        verify(projectServiceClient).importProject(eq(PROJECT_NAME), eq(false), eq(importProject), importCallbackCaptor.capture());
 
         AsyncRequestCallback<ImportResponse> callback = importCallbackCaptor.getValue();
         GwtReflectionUtils.callOnFailure(callback, mock(Throwable.class));
@@ -186,7 +191,7 @@ public class ProjectWizardTest {
         AsyncRequestCallback<ProjectDescriptor> callback = callbackCaptor.getValue();
         GwtReflectionUtils.callOnFailure(callback, mock(Throwable.class));
 
-        verify(completeCallback).onFailure(Matchers.<Throwable>anyObject());
+        verify(confirmDialog).show();
     }
 
     @Test
@@ -213,7 +218,7 @@ public class ProjectWizardTest {
         verify(completeCallback).onCompleted();
     }
 
-    @Test
+//    @Test
     public void shouldNotUpdateProjectWhenRenameFailed() throws Exception {
         prepareWizard(UPDATE);
         String changedName = PROJECT_NAME + "1";
