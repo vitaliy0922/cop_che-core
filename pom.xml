@@ -38,6 +38,7 @@
         <url>https://github.com/codenvy/che-core</url>
     </scm>
     <properties>
+        <org.pac4j.version>1.8.0-SNAPSHOT</org.pac4j.version>
         <maven.model.version>3.0.5</maven.model.version>
         <specification.version>1.0-beta2</specification.version>
     </properties>

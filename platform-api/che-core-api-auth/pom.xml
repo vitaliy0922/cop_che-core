@@ -11,7 +11,8 @@
       Codenvy, S.A. - initial API and implementation
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <artifactId>che-core-api-parent</artifactId>
@@ -41,9 +42,29 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>pac4j-core</artifactId>
+            <version>${org.pac4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>pac4j-http</artifactId>
+            <version>${org.pac4j.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
             <version>${javax.jcr350.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.core</groupId>
+            <artifactId>che-core-api-account</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.core</groupId>
+            <artifactId>che-core-api-workspace</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <!-- override to much IDE version -->
