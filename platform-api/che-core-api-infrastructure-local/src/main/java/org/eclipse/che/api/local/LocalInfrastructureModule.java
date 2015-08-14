@@ -26,6 +26,7 @@ import org.eclipse.che.api.auth.TokenManager;
 import org.eclipse.che.api.auth.UserProvider;
 
 import org.eclipse.che.api.factory.FactoryStore;
+import org.eclipse.che.api.local.storage.LocalStorageFactory;
 import org.eclipse.che.api.user.server.TokenValidator;
 import org.eclipse.che.api.user.server.dao.PreferenceDao;
 import org.eclipse.che.api.user.server.dao.User;
@@ -51,7 +52,7 @@ public class LocalInfrastructureModule extends AbstractModule {
         bind(PreferenceDao.class).to(LocalPreferenceDaoImpl.class);
         bind(MemberDao.class).to(LocalMemberDaoImpl.class);
         bind(AccountDao.class).to(LocalAccountDaoImpl.class);
-        bind(FactoryStore.class).to(InMemoryFactoryStore.class);
+        bind(FactoryStore.class).to(LocalFactoryDaoImpl.class);
         bind(TokenValidator.class).to(LocalTokenValidator.class);
 
         bind(TokenInvalidationHandler.class).to(LocalSessionInvalidationHandler.class);
@@ -59,6 +60,7 @@ public class LocalInfrastructureModule extends AbstractModule {
         bind(UserProvider.class).to(SessionUserProvider.class);
         bind(TokenExtractor.class).to(CookiesTokenExtractor.class);
         bind(TokenGenerator.class).to(SecureRandomTokenGenerator.class);
+        bind(LocalStorageFactory.class);
     }
 
 

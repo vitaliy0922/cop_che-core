@@ -17,6 +17,8 @@ import org.eclipse.che.api.builder.gwt.client.BuilderServiceClient;
 import org.eclipse.che.api.builder.gwt.client.BuilderServiceClientImpl;
 import org.eclipse.che.api.factory.gwt.client.FactoryServiceClient;
 import org.eclipse.che.api.factory.gwt.client.FactoryServiceClientImpl;
+import org.eclipse.che.api.git.gwt.client.GitServiceClient;
+import org.eclipse.che.api.git.gwt.client.GitServiceClientImpl;
 import org.eclipse.che.api.project.gwt.client.ProjectImportersServiceClient;
 import org.eclipse.che.api.project.gwt.client.ProjectImportersServiceClientImpl;
 import org.eclipse.che.api.project.gwt.client.ProjectServiceClient;
@@ -181,7 +183,6 @@ import org.eclipse.che.ide.ui.dropdown.DropDownHeaderWidgetImpl;
 import org.eclipse.che.ide.ui.dropdown.DropDownListFactory;
 import org.eclipse.che.ide.ui.loader.IdeLoader;
 import org.eclipse.che.ide.ui.toolbar.MainToolbar;
-import org.eclipse.che.ide.ui.toolbar.ToolbarMainPresenter;
 import org.eclipse.che.ide.ui.toolbar.ToolbarPresenter;
 import org.eclipse.che.ide.ui.toolbar.ToolbarView;
 import org.eclipse.che.ide.ui.toolbar.ToolbarViewImpl;
@@ -301,6 +302,7 @@ public class CoreGinModule extends AbstractGinModule {
     private void configurePlatformApiGwtClients() {
         bind(UserServiceClient.class).to(UserServiceClientImpl.class).in(Singleton.class);
         bind(UserProfileServiceClient.class).to(UserProfileServiceClientImpl.class).in(Singleton.class);
+        bind(GitServiceClient.class).to(GitServiceClientImpl.class).in(Singleton.class);
         bind(AccountServiceClient.class).to(AccountServiceClientImpl.class).in(Singleton.class);
         bind(FactoryServiceClient.class).to(FactoryServiceClientImpl.class).in(Singleton.class);
         bind(WorkspaceServiceClient.class).to(WorkspaceServiceClientImpl.class).in(Singleton.class);
@@ -350,7 +352,7 @@ public class CoreGinModule extends AbstractGinModule {
         bind(StatusPanelGroupView.class).to(StatusPanelGroupViewImpl.class).in(Singleton.class);
 
         bind(ToolbarView.class).to(ToolbarViewImpl.class);
-        bind(ToolbarPresenter.class).annotatedWith(MainToolbar.class).to(ToolbarMainPresenter.class).in(Singleton.class);
+        bind(ToolbarPresenter.class).annotatedWith(MainToolbar.class).to(ToolbarPresenter.class).in(Singleton.class);
 
         //configure drop down menu
         install(new GinFactoryModuleBuilder().implement(DropDownHeaderWidget.class, DropDownHeaderWidgetImpl.class)
