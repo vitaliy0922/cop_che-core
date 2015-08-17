@@ -1,4 +1,4 @@
-package org.eclipse.che.api.auth; /*******************************************************************************
+/*******************************************************************************
  * Copyright (c) 2012-2015 Codenvy, S.A.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -8,8 +8,19 @@ package org.eclipse.che.api.auth; /*********************************************
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
+package org.eclipse.che.api.auth; /*******************************************************************************
+ * Copyright (c) 2012-2015 Codenvy, S.A.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ * <p>
+ * Contributors:
+ * Codenvy, S.A. - initial API and implementation
+ *******************************************************************************/
 
 import static com.jayway.restassured.RestAssured.given;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,10 +48,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.testng.MockitoTestNGListener;
+import org.pac4j.core.client.Client;
+import org.pac4j.core.client.Clients;
+import org.pac4j.core.context.WebContext;
+import org.pac4j.core.profile.UserProfile;
+import org.pac4j.http.credentials.UsernamePasswordCredentials;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.core.Response;
+import java.lang.reflect.Field;
 
 @Listeners(value = {EverrestJetty.class, MockitoTestNGListener.class})
 public class AuthenticationServiceTest {
@@ -54,8 +72,27 @@ public class AuthenticationServiceTest {
     @Mock
     TokenInvalidationHandler tokenInvalidationHandler;
 
+    Clients clients;
+    @Mock
+    Client      client;
+    @Mock
+    UserProfile profile;
+
+
+
     @InjectMocks
     AuthenticationService service;
+
+
+    @BeforeMethod
+    public void setUp() throws Exception {
+        clients = new Clients(client);
+
+        Field field = AuthenticationService.class.getDeclaredField("clients");
+        field.setAccessible(true);
+        field.set(service, clients);
+
+    }
 
     @Test
     public void shouldFailIfNoBodyOnLogin() {
@@ -132,10 +169,11 @@ public class AuthenticationServiceTest {
     public void shouldReturnToken() throws ApiException {
         //given
         Token expected = DtoFactory.getInstance().createDto(Token.class).withValue("t-12342345");
-        when(userDao.authenticate(eq("User"), eq("password"))).thenReturn(true);
-        when(userDao.getByAlias(eq("User"))).thenReturn(user);
-        when(user.getId()).thenReturn("u-1");
+//        when(userDao.authenticate(eq("User"), eq("password"))).thenReturn(true);
+//        when(userDao.getByAlias(eq("User"))).thenReturn(user);
+        when(profile.getId()).thenReturn("u-1");
         when(tokenManager.createToken(eq("u-1"))).thenReturn("t-12342345");
+        when(client.getUserProfile(any(org.pac4j.core.credentials.Credentials.class), any(WebContext.class))).thenReturn(profile);
         //when
 
         Token actual = given()
@@ -152,12 +190,12 @@ public class AuthenticationServiceTest {
                 .post("/auth/login").as(DtoServerImpls.TokenImpl.class, ObjectMapperType.GSON);
         //then
         assertEquals(actual, expected);
-        ArgumentCaptor<String> login = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> password = ArgumentCaptor.forClass(String.class);
-        verify(userDao).authenticate(login.capture(), password.capture());
+        ArgumentCaptor<UsernamePasswordCredentials> credetials = ArgumentCaptor.forClass(UsernamePasswordCredentials.class);
+        ArgumentCaptor<WebContext> context = ArgumentCaptor.forClass(WebContext.class);
+        verify(client).getUserProfile(credetials.capture(), context.capture());
 
-        assertEquals(login.getValue(), "User");
-        assertEquals(password.getValue(), "password");
+        assertEquals(credetials.getValue().getUsername(), "User");
+        assertEquals(credetials.getValue().getPassword(), "password");
 
     }
 

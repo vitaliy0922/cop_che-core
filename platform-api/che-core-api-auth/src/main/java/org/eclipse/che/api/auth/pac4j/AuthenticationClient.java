@@ -1,20 +1,13 @@
-/*
- * CODENVY CONFIDENTIAL
- * __________________
- * 
- *  [2012] - [2015] Codenvy, S.A. 
- *  All Rights Reserved.
- * 
- * NOTICE:  All information contained herein is, and remains
- * the property of Codenvy S.A. and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Codenvy S.A.
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Codenvy S.A..
- */
+/*******************************************************************************
+ * Copyright (c) 2012-2015 Codenvy, S.A.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Codenvy, S.A. - initial API and implementation
+ *******************************************************************************/
 package org.eclipse.che.api.auth.pac4j;
 
 import org.pac4j.core.client.BaseClient;
@@ -24,34 +17,40 @@ import org.pac4j.core.context.WebContext;
 import org.pac4j.core.credentials.Credentials;
 import org.pac4j.core.exception.RequiresHttpAction;
 import org.pac4j.core.profile.CommonProfile;
+import org.pac4j.http.client.direct.DirectHttpClient;
+import org.pac4j.http.credentials.UsernamePasswordCredentials;
+import org.pac4j.http.credentials.authenticator.Authenticator;
+import org.pac4j.http.credentials.extractor.Extractor;
+import org.pac4j.http.profile.HttpProfile;
+import org.pac4j.http.profile.creator.ProfileCreator;
+
+import javax.inject.Inject;
 
 /**
  * @author Sergii Kabashniuk
  */
-public class AuthenticationClient extends DirectClient {
+public class AuthenticationClient extends DirectHttpClient<UsernamePasswordCredentials> {
+
+
+    @Inject
+    public AuthenticationClient(Extractor<UsernamePasswordCredentials> extractor,
+                                Authenticator<UsernamePasswordCredentials> authenticator,
+                                ProfileCreator<UsernamePasswordCredentials, HttpProfile> profileCreator) {
+
+        this.extractor = extractor;
+        setAuthenticator(authenticator);
+        setProfileCreator(profileCreator);
+
+    }
+
 
     @Override
     protected BaseClient newClient() {
-        return new AuthenticationClient();
-    }
-
-    @Override
-    protected CommonProfile retrieveUserProfile(Credentials credentials, WebContext context) {
-        return null;
+        return new AuthenticationClient(extractor, getAuthenticator(), getProfileCreator());
     }
 
     @Override
     public Mechanism getMechanism() {
         return Mechanism.PARAMETER_MECHANISM;
-    }
-
-    @Override
-    public Credentials getCredentials(WebContext context) throws RequiresHttpAction {
-        return null;
-    }
-
-    @Override
-    protected void internalInit() {
-
     }
 }
