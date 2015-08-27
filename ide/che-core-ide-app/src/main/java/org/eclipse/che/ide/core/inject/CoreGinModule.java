@@ -89,8 +89,6 @@ import org.eclipse.che.ide.api.theme.ThemeAgent;
 import org.eclipse.che.ide.bootstrap.DefaultIconsComponent;
 import org.eclipse.che.ide.bootstrap.PreferencesComponent;
 import org.eclipse.che.ide.bootstrap.ProfileComponent;
-import org.eclipse.che.ide.bootstrap.ProjectTemplatesComponent;
-import org.eclipse.che.ide.bootstrap.ProjectTypeComponent;
 import org.eclipse.che.ide.bootstrap.StandartComponent;
 import org.eclipse.che.ide.bootstrap.WorkspaceComponent;
 import org.eclipse.che.ide.bootstrap.ZeroClipboardInjector;
@@ -105,6 +103,8 @@ import org.eclipse.che.ide.extension.ExtensionManagerViewImpl;
 import org.eclipse.che.ide.filetypes.FileTypeRegistryImpl;
 import org.eclipse.che.ide.icon.IconRegistryImpl;
 import org.eclipse.che.ide.keybinding.KeyBindingManager;
+import org.eclipse.che.ide.loader.LoaderView;
+import org.eclipse.che.ide.loader.LoaderViewImpl;
 import org.eclipse.che.ide.logger.AnalyticsEventLoggerExt;
 import org.eclipse.che.ide.logger.AnalyticsEventLoggerImpl;
 import org.eclipse.che.ide.menu.MainMenuView;
@@ -401,6 +401,8 @@ public class CoreGinModule extends AbstractGinModule {
         bind(FindActionView.class).to(FindActionViewImpl.class).in(Singleton.class);
 
         bind(PrivacyPresenter.class).asEagerSingleton();
+
+        bind(LoaderView.class).to(LoaderViewImpl.class).in(Singleton.class);
 
         GinMultibinder.newSetBinder(binder(), SettingsPagePresenter.class);
     }

@@ -449,6 +449,9 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("messages.noOpenedProject")
     String noOpenedProject();
 
+    @Key("messages.startingOperation")
+    String startingOperation(String operation);
+
     /* Buttons */
     @Key("ok")
     String ok();

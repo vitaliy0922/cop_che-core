@@ -15,6 +15,8 @@ import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.resources.client.DataResource;
 import com.google.gwt.resources.client.DataResource.MimeType;
 
+import org.vectomatic.dom.svg.ui.SVGResource;
+
 /**
  * Resources for loader.
  *
@@ -24,6 +26,11 @@ public interface LoaderResources extends ClientBundle {
 
     interface PinionCss extends CssResource {
         String pinion();
+        String expandControl();
+        String expandedImage();
+        String errorStatus();
+        String successStatus();
+        String inProgressStatus();
     }
 
     @MimeType("image/png")
@@ -32,5 +39,8 @@ public interface LoaderResources extends ClientBundle {
 
     @Source({"org/eclipse/che/ide/ui/constants.css", "org/eclipse/che/ide/ui/loader/IdeLoader.css", "org/eclipse/che/ide/api/ui/style.css"})
     PinionCss Css();
+
+    @Source("expansionIcon.svg")
+    SVGResource expansionImage();
 
 }
