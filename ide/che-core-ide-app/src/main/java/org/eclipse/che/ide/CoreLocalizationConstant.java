@@ -452,6 +452,9 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("messages.startingOperation")
     String startingOperation(String operation);
 
+    @Key("messages.operationsCompleted")
+    String operationsCompleted();
+
     /* Buttons */
     @Key("ok")
     String ok();

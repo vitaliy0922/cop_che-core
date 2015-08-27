@@ -13,6 +13,8 @@ package org.eclipse.che.ide.loader;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import org.eclipse.che.ide.CoreLocalizationConstant;
+
 /**
  * Loader for displaying information about the operation.
  *
@@ -22,11 +24,14 @@ import com.google.inject.Singleton;
 public class LoaderPresenter implements OperationInfo.StatusListener, LoaderView.ActionDelegate {
 
     private final LoaderView view;
-    private       boolean    expandPanelState;
+    private CoreLocalizationConstant localizedConstants;
+    private boolean expandPanelState;
 
     @Inject
-    public LoaderPresenter(LoaderView view) {
+    public LoaderPresenter(LoaderView view,
+                           CoreLocalizationConstant localizedConstants) {
         this.view = view;
+        this.localizedConstants = localizedConstants;
         view.setDelegate(this);
         expandPanelState = false;
     }
@@ -46,7 +51,7 @@ public class LoaderPresenter implements OperationInfo.StatusListener, LoaderView
      * Hide loader and clean it.
      */
     public void hide() {
-        view.print(new OperationInfo("The operations completed!", OperationInfo.Status.EMPTY));
+        view.print(new OperationInfo(localizedConstants.operationsCompleted(), OperationInfo.Status.EMPTY));
         view.setEnabledCloseButton(true);
         if (!expandPanelState) {
             view.hide();
@@ -83,7 +88,7 @@ public class LoaderPresenter implements OperationInfo.StatusListener, LoaderView
     }
 
     @Override
-    public void onChanged() {
+    public void onStatusChanged() {
         view.update();
     }
 

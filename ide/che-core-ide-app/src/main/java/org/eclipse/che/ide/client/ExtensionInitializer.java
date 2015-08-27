@@ -39,7 +39,7 @@ public class ExtensionInitializer {
     private final ExtensionManager         extensionManager;
     private       PreferencesManager       preferencesManager;
     private       CoreLocalizationConstant localizedConstants;
-    private LoaderPresenter loader;
+    private       LoaderPresenter          loader;
 
     /**
      *

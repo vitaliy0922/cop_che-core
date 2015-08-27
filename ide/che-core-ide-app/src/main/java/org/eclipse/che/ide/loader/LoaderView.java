@@ -30,8 +30,10 @@ public interface LoaderView extends IsWidget {
         void onDetailsClicked();
     }
 
+    /** Expand Details area. */
     void expandDetails();
 
+    /** Collapse Details area. */
     void collapseDetails();
 
     /** Sets the delegate to receive events from this view. */

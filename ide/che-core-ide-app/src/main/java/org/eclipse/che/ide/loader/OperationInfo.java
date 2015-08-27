@@ -43,7 +43,7 @@ public class OperationInfo {
     public void setStatus(Status status) {
         this.status = status;
         if (statusListener != null) {
-            statusListener.onChanged();
+            statusListener.onStatusChanged();
         }
     }
 
@@ -79,6 +79,6 @@ public class OperationInfo {
 
     /** Listener's method will be invoked when status is change. */
     interface StatusListener {
-        void onChanged();
+        void onStatusChanged();
     }
 }
