@@ -59,6 +59,7 @@ public class ExtensionInitializer {
 
     /** {@inheritDoc} */
     public void startExtensions() {
+        loader.show(new OperationInfo(localizedConstants.startingOperation("extensions..."), OperationInfo.Status.EMPTY));
         String value = preferencesManager.getValue("ExtensionsPreferences");
         final Jso jso = Jso.deserialize(value == null ? "{}" : value);
         Map<String, Provider> providers = extensionManager.getExtensions();
