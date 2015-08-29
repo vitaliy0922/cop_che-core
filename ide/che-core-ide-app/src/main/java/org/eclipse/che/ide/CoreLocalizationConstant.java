@@ -455,6 +455,9 @@ public interface CoreLocalizationConstant extends Messages {
     @Key("messages.gettingWorkspace")
     String gettingWorkspace();
 
+    @Key("messages.creatingWorkspace")
+    String creatingWorkspace();
+
     @Key("messages.operationsCompleted")
     String operationsCompleted();
 

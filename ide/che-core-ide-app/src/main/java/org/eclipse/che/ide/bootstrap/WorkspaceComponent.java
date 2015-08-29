@@ -101,8 +101,7 @@ public class WorkspaceComponent implements Component {
                                                         .withEnvironments(workspaceConfig.getEnvironments())
                                                         .withDefaultEnvName(workspaceConfig.getDefaultEnvName())
                                                         .withTemporary(true);
-        final OperationInfo createWsOperation =
-                new OperationInfo(localizedConstants.startingOperation("the creation of workspace"), Status.IN_PROGRESS, loader);
+        final OperationInfo createWsOperation = new OperationInfo(localizedConstants.creatingWorkspace(), Status.IN_PROGRESS, loader);
         loader.print(createWsOperation);
         workspaceServiceClient.create(usersWorkspaceDto, null).then(new Operation<UsersWorkspaceDto>() {
             @Override
@@ -123,7 +122,7 @@ public class WorkspaceComponent implements Component {
 
     private void startWorkspace(String id, String envName, final Callback<Component, Exception> callback) {
         final OperationInfo startWsOperation =
-                new OperationInfo(localizedConstants.startingOperation("the workspace"), Status.IN_PROGRESS, loader);
+                new OperationInfo(localizedConstants.startingOperation("workspace"), Status.IN_PROGRESS, loader);
         loader.print(startWsOperation);
         workspaceServiceClient.startById(id, envName).then(new Operation<UsersWorkspaceDto>() {
             @Override
