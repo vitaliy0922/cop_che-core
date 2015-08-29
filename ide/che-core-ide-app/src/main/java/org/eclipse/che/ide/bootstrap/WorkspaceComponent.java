@@ -15,7 +15,6 @@ import com.google.gwt.core.client.Callback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.PromiseError;
@@ -66,19 +65,7 @@ public class WorkspaceComponent implements Component {
                     appContext.setWorkspace(arg.get(0));
                     callback.onSuccess(WorkspaceComponent.this);
                 } else {
-                    workspaceServiceClient.startTemporary(getWorkspaceConfig(), null).then(new Operation<UsersWorkspaceDto>() {
-                        @Override
-                        public void apply(UsersWorkspaceDto arg) throws OperationException {
-                            Config.setCurrentWorkspace(arg);
-                            appContext.setWorkspace(arg);
-                            callback.onSuccess(WorkspaceComponent.this);
-                        }
-                    }).catchError(new Operation<PromiseError>() {
-                        @Override
-                        public void apply(PromiseError arg) throws OperationException {
-                            callback.onFailure(new Exception(arg.getCause()));
-                        }
-                    });
+                    createWorkspace(callback);
                 }
             }
         }).catchError(new Operation<PromiseError>() {
@@ -89,7 +76,45 @@ public class WorkspaceComponent implements Component {
         });
     }
 
-    private WorkspaceConfig getWorkspaceConfig() {
+    private void createWorkspace(final Callback<Component, Exception> callback) {
+        WorkspaceConfigDto workspaceConfig = getWorkspaceConfig();
+        UsersWorkspaceDto usersWorkspaceDto = dtoFactory.createDto(UsersWorkspaceDto.class)
+                                                        .withName(workspaceConfig.getName())
+                                                        .withAttributes(workspaceConfig.getAttributes())
+                                                        .withCommands(workspaceConfig.getCommands())
+                                                        .withEnvironments(workspaceConfig.getEnvironments())
+                                                        .withDefaultEnvName(workspaceConfig.getDefaultEnvName())
+                                                        .withTemporary(true);
+        workspaceServiceClient.create(usersWorkspaceDto, null).then(new Operation<UsersWorkspaceDto>() {
+            @Override
+            public void apply(UsersWorkspaceDto arg) throws OperationException {
+                startWorkspace(arg.getId(), arg.getDefaultEnvName(), callback);
+            }
+        }).catchError(new Operation<PromiseError>() {
+            @Override
+            public void apply(PromiseError arg) throws OperationException {
+                callback.onFailure(new Exception(arg.getCause()));
+            }
+        });
+    }
+
+    private void startWorkspace(String id, String envName, final Callback<Component, Exception> callback) {
+        workspaceServiceClient.startById(id, envName).then(new Operation<UsersWorkspaceDto>() {
+            @Override
+            public void apply(UsersWorkspaceDto arg) throws OperationException {
+                Config.setCurrentWorkspace(arg);
+                appContext.setWorkspace(arg);
+                callback.onSuccess(WorkspaceComponent.this);
+            }
+        }).catchError(new Operation<PromiseError>() {
+            @Override
+            public void apply(PromiseError arg) throws OperationException {
+                callback.onFailure(new Exception(arg.getCause()));
+            }
+        });
+    }
+
+    private WorkspaceConfigDto getWorkspaceConfig() {
         List<MachineConfigDto> machineConfigs = new ArrayList<>();
         machineConfigs.add(dtoFactory.createDto(MachineConfigDto.class)
                                      .withName("dev-machine")
