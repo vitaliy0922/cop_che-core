@@ -100,9 +100,6 @@ public class LoaderViewImpl extends PopupPanel implements LoaderView, ResizeHand
         DockLayoutPanel rootElement = uiBinder.createAndBindUi(this);
         this.add(rootElement);
 
-        getElement().getStyle().setProperty("WebkitTransition", "all 0.25s ease-in-out");
-        getElement().getStyle().setProperty("transition", "all 0.25s ease-in-out");
-
         expander = Document.get().createDivElement();
         expander.appendChild(resources.expansionImage().getSvg().getElement());
         expander.setClassName(resources.Css().expandControl());

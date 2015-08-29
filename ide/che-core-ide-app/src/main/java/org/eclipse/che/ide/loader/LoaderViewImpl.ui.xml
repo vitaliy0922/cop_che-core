@@ -42,8 +42,8 @@
         }
 
         .animate {
-            -webkit-transition: all 0.25s ease-in-out;
-            transition: all 0.25s ease-in-out;
+            transition: width 0.25s  linear, height 0.25s linear;
+            overflow: hidden;
         }
 
         .button {
@@ -95,7 +95,7 @@
                 <g:ScrollPanel ui:field="scroll" styleName="{style.detailsPanel}">
                     <p1:CellTable width="100%" ui:field="detailsTable" focus="false" styleName="{style.detailsTable}"/>
                 </g:ScrollPanel>
-                <g:Button text="Close" styleName="{style.button}" ui:field="closeButton" debugId="closeButton"/>
+                <g:Button text="Close" addStyleNames="{style.button}" ui:field="closeButton" debugId="closeButton"/>
             </g:FlowPanel>
         </g:north>
     </g:DockLayoutPanel>

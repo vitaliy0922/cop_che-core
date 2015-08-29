@@ -92,7 +92,7 @@ public class IdeLoader implements AsyncRequestLoader {
             setGlassEnabled(true);
             getGlassElement().getStyle().setOpacity(0);
             getGlassElement().getStyle().setZIndex(9999998);
-            getElement().getStyle().setZIndex(9999999);
+            getElement().getStyle().setZIndex(9999998);
         }
 
         public void setMessage(String message) {

@@ -59,7 +59,8 @@ public class ExtensionInitializer {
 
     /** {@inheritDoc} */
     public void startExtensions() {
-        loader.show(new OperationInfo(localizedConstants.startingOperation("extensions..."), OperationInfo.Status.EMPTY));
+        OperationInfo startExtensionsOoeration = new OperationInfo(localizedConstants.startingOperation("extensions..."), OperationInfo.Status.IN_PROGRESS, loader);
+        loader.print(startExtensionsOoeration);
         String value = preferencesManager.getValue("ExtensionsPreferences");
         final Jso jso = Jso.deserialize(value == null ? "{}" : value);
         Map<String, Provider> providers = extensionManager.getExtensions();
@@ -87,6 +88,8 @@ public class ExtensionInitializer {
                 }
             }
         }
+        startExtensionsOoeration.setStatus(OperationInfo.Status.FINISHED);
+        loader.hide();
     }
 
     /** {@inheritDoc} */

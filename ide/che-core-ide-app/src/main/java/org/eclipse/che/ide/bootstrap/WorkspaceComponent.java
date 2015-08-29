@@ -25,9 +25,13 @@ import org.eclipse.che.api.workspace.shared.dto.MachineConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.MachineSourceDto;
 import org.eclipse.che.api.workspace.shared.dto.UsersWorkspaceDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
+import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.core.Component;
 import org.eclipse.che.ide.dto.DtoFactory;
+import org.eclipse.che.ide.loader.LoaderPresenter;
+import org.eclipse.che.ide.loader.OperationInfo;
+import org.eclipse.che.ide.loader.OperationInfo.Status;
 import org.eclipse.che.ide.util.Config;
 
 import java.util.ArrayList;
@@ -44,39 +48,51 @@ public class WorkspaceComponent implements Component {
     private static final String RECIPE_URL =
             "https://gist.githubusercontent.com/vparfonov/5c633534bfb0c127854f/raw/f176ee3428c2d39d08c7b4762aee6855dc5c8f75/jdk8_maven3_tomcat8";
 
-    private final WorkspaceServiceClient workspaceServiceClient;
-    private final AppContext             appContext;
-    private final DtoFactory             dtoFactory;
+    private final WorkspaceServiceClient   workspaceServiceClient;
+    private final CoreLocalizationConstant localizedConstants;
+    private final LoaderPresenter          loader;
+    private final AppContext               appContext;
+    private final DtoFactory               dtoFactory;
 
     @Inject
-    public WorkspaceComponent(WorkspaceServiceClient workspaceServiceClient, AppContext appContext, DtoFactory dtoFactory) {
+    public WorkspaceComponent(WorkspaceServiceClient workspaceServiceClient,
+                              CoreLocalizationConstant localizedConstants,
+                              LoaderPresenter loader,
+                              AppContext appContext,
+                              DtoFactory dtoFactory) {
         this.workspaceServiceClient = workspaceServiceClient;
+        this.localizedConstants = localizedConstants;
+        this.loader = loader;
         this.appContext = appContext;
         this.dtoFactory = dtoFactory;
     }
 
     @Override
     public void start(final Callback<Component, Exception> callback) {
+        final OperationInfo getWsOperation = new OperationInfo(localizedConstants.gettingWorkspace(), Status.IN_PROGRESS, loader);
+        loader.show(getWsOperation);
         workspaceServiceClient.getWorkspaces(0, 1).then(new Operation<List<UsersWorkspaceDto>>() {
             @Override
             public void apply(List<UsersWorkspaceDto> arg) throws OperationException {
                 if (!arg.isEmpty()) {
+                    getWsOperation.setStatus(Status.FINISHED);
                     Config.setCurrentWorkspace(arg.get(0));
                     appContext.setWorkspace(arg.get(0));
                     callback.onSuccess(WorkspaceComponent.this);
                 } else {
-                    createWorkspace(callback);
+                    createWorkspace(callback, getWsOperation);
                 }
             }
         }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError arg) throws OperationException {
+                getWsOperation.setStatus(Status.ERROR);
                 callback.onFailure(new Exception(arg.getCause()));
             }
         });
     }
 
-    private void createWorkspace(final Callback<Component, Exception> callback) {
+    private void createWorkspace(final Callback<Component, Exception> callback, final OperationInfo getWsOperation) {
         WorkspaceConfigDto workspaceConfig = getWorkspaceConfig();
         UsersWorkspaceDto usersWorkspaceDto = dtoFactory.createDto(UsersWorkspaceDto.class)
                                                         .withName(workspaceConfig.getName())
@@ -85,23 +101,34 @@ public class WorkspaceComponent implements Component {
                                                         .withEnvironments(workspaceConfig.getEnvironments())
                                                         .withDefaultEnvName(workspaceConfig.getDefaultEnvName())
                                                         .withTemporary(true);
+        final OperationInfo createWsOperation =
+                new OperationInfo(localizedConstants.startingOperation("the creation of workspace"), Status.IN_PROGRESS, loader);
+        loader.print(createWsOperation);
         workspaceServiceClient.create(usersWorkspaceDto, null).then(new Operation<UsersWorkspaceDto>() {
             @Override
             public void apply(UsersWorkspaceDto arg) throws OperationException {
+                getWsOperation.setStatus(Status.FINISHED);
+                createWsOperation.setStatus(Status.FINISHED);
                 startWorkspace(arg.getId(), arg.getDefaultEnvName(), callback);
             }
         }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError arg) throws OperationException {
+                getWsOperation.setStatus(Status.ERROR);
+                createWsOperation.setStatus(Status.ERROR);
                 callback.onFailure(new Exception(arg.getCause()));
             }
         });
     }
 
     private void startWorkspace(String id, String envName, final Callback<Component, Exception> callback) {
+        final OperationInfo startWsOperation =
+                new OperationInfo(localizedConstants.startingOperation("the workspace"), Status.IN_PROGRESS, loader);
+        loader.print(startWsOperation);
         workspaceServiceClient.startById(id, envName).then(new Operation<UsersWorkspaceDto>() {
             @Override
             public void apply(UsersWorkspaceDto arg) throws OperationException {
+                startWsOperation.setStatus(Status.FINISHED);
                 Config.setCurrentWorkspace(arg);
                 appContext.setWorkspace(arg);
                 callback.onSuccess(WorkspaceComponent.this);
@@ -109,6 +136,7 @@ public class WorkspaceComponent implements Component {
         }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError arg) throws OperationException {
+                startWsOperation.setStatus(Status.ERROR);
                 callback.onFailure(new Exception(arg.getCause()));
             }
         });
