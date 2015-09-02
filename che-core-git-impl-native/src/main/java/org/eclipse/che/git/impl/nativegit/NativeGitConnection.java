@@ -135,6 +135,19 @@ public class NativeGitConnection implements GitConnection {
         this.nativeGit = nativeGit;
     }
 
+    private File getRootRepositoryDir() throws GitException {
+        final EmptyGitCommand emptyGitCommand = nativeGit.createEmptyGitCommand();
+        emptyGitCommand.setNextParameter("rev-parse").setNextParameter("--show-toplevel").execute();
+        final String path = emptyGitCommand.getText();
+        return new File(path);
+    }
+
+    private void check() throws GitException {
+        if (!getWorkingDir().getAbsolutePath().equals(getRootRepositoryDir().getAbsolutePath())) {
+            throw new GitException("Dou!");
+        }
+    }
+
     @Override
     public File getWorkingDir() {
         return nativeGit.getRepository();
@@ -142,6 +155,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void add(AddRequest request) throws GitException {
+        check();
         AddCommand command = nativeGit.createAddCommand();
         command.setFilePattern(request.getFilepattern() == null ?
                                AddRequest.DEFAULT_PATTERN :
@@ -152,6 +166,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void branchCheckout(BranchCheckoutRequest request) throws GitException {
+        check();
         nativeGit.createBranchCheckoutCommand()
                  .setBranchName(request.getName())
                  .setStartPoint(request.getStartPoint())
@@ -162,6 +177,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public Branch branchCreate(BranchCreateRequest request) throws GitException {
+        check();
         BranchCreateCommand branchCreateCommand = nativeGit.createBranchCreateCommand();
         branchCreateCommand.setBranchName(request.getName())
                            .setStartPoint(request.getStartPoint())
@@ -172,6 +188,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void branchDelete(BranchDeleteRequest request) throws GitException, UnauthorizedException {
+        check();
         String branchName = getBranchRef(request.getName());
         String remoteName = null;
         String remoteUri = null;
@@ -203,6 +220,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void branchRename(String oldName, String newName) throws GitException, UnauthorizedException {
+        check();
         String branchName = getBranchRef(oldName);
         String remoteName = null;
         String remoteUri = null;
@@ -234,6 +252,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public List<Branch> branchList(BranchListRequest request) throws GitException {
+        check();
         String listMode = request.getListMode();
         if (listMode != null
             && !(listMode.equals(BranchListRequest.LIST_ALL) || listMode.equals(BranchListRequest.LIST_REMOTE))) {
@@ -254,6 +273,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public List<String> listFiles(LsFilesRequest request) throws GitException {
+        check();
         return nativeGit.createListFilesCommand()
                         .setOthers(request.isOthers())
                         .setModified(request.isModified())
@@ -289,6 +309,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public Revision commit(CommitRequest request) throws GitException {
+        check();
         CommitCommand command = nativeGit.createCommitCommand();
         GitUser committer = getLocalCommitter();
         command.setCommitter(committer);
@@ -325,11 +346,13 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public DiffPage diff(DiffRequest request) throws GitException {
+        check();
         return new NativeGitDiffPage(request, nativeGit);
     }
 
     @Override
     public void fetch(FetchRequest request) throws GitException, UnauthorizedException {
+        check();
         String remoteUri;
         try {
             remoteUri = nativeGit.createRemoteListCommand()
@@ -372,11 +395,13 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public LogPage log(LogRequest request) throws GitException {
+        check();
         return new LogPage(nativeGit.createLogCommand().execute());
     }
 
     @Override
     public List<RemoteReference> lsRemote(LsRemoteRequest request) throws GitException, UnauthorizedException {
+        check();
         LsRemoteCommand command = nativeGit.createLsRemoteCommand().setRemoteUrl(request.getRemoteUrl());
         executeRemoteCommand(command);
         return command.getRemoteReferences();
@@ -384,6 +409,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public MergeResult merge(MergeRequest request) throws GitException {
+        check();
         final String gitObjectType = getRevisionType(request.getCommit());
         if (!("commit".equalsIgnoreCase(gitObjectType) || "tag".equalsIgnoreCase(gitObjectType))) {
             throw new GitException("Invalid object for merge " + request.getCommit());
@@ -393,6 +419,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void mv(MoveRequest request) throws GitException {
+        check();
         nativeGit.createMoveCommand()
                  .setSource(request.getSource())
                  .setTarget(request.getTarget())
@@ -401,6 +428,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public PullResponse pull(PullRequest request) throws GitException, UnauthorizedException {
+        check();
         String remoteUri;
         try {
             remoteUri = nativeGit.createRemoteListCommand()
@@ -425,6 +453,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public PushResponse push(PushRequest request) throws GitException, UnauthorizedException {
+        check();
         String remoteUri;
         try {
             remoteUri = nativeGit.createRemoteListCommand()
@@ -451,6 +480,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void remoteAdd(RemoteAddRequest request) throws GitException {
+        check();
         nativeGit.createRemoteAddCommand()
                  .setName(request.getName())
                  .setUrl(request.getUrl())
@@ -460,17 +490,20 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void remoteDelete(String name) throws GitException {
+        check();
         nativeGit.createRemoteDeleteCommand().setName(name).execute();
     }
 
     @Override
     public List<Remote> remoteList(RemoteListRequest request) throws GitException {
+        check();
         RemoteListCommand remoteListCommand = nativeGit.createRemoteListCommand();
         return remoteListCommand.setRemoteName(request.getRemote()).execute();
     }
 
     @Override
     public void remoteUpdate(RemoteUpdateRequest request) throws GitException {
+        check();
         nativeGit.createRemoteUpdateCommand()
                  .setRemoteName(request.getName())
                  .setAddUrl(request.getAddUrl())
@@ -484,6 +517,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void reset(ResetRequest request) throws GitException {
+        check();
         nativeGit.createResetCommand()
                  .setMode(request.getType().getValue())
                  .setCommit(request.getCommit())
@@ -493,6 +527,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void rm(RmRequest request) throws GitException {
+        check();
         nativeGit.createRemoveCommand()
                  .setCached(request.isCached())
                  .setListOfItems(request.getItems())
@@ -502,11 +537,13 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public Status status(final StatusFormat format) throws GitException {
+        check();
         return new NativeGitStatusImpl(getCurrentBranch(), nativeGit, format);
     }
 
     @Override
     public Tag tagCreate(TagCreateRequest request) throws GitException {
+        check();
         return nativeGit.createTagCreateCommand().setName(request.getName())
                         .setCommitter(getLocalCommitter())
                         .setCommit(request.getCommit())
@@ -517,11 +554,13 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public void tagDelete(TagDeleteRequest request) throws GitException {
+        check();
         nativeGit.createTagDeleteCommand().setName(request.getName()).execute();
     }
 
     @Override
     public List<Tag> tagList(TagListRequest request) throws GitException {
+        check();
         return nativeGit.createTagListCommand().setPattern(request.getPattern()).execute();
     }
 
@@ -532,6 +571,7 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public List<GitUser> getCommiters() throws GitException {
+        check();
         List<GitUser> users = new LinkedList<>();
         List<Revision> revList = nativeGit.createLogCommand().execute();
         for (Revision rev : revList) {
@@ -542,19 +582,13 @@ public class NativeGitConnection implements GitConnection {
 
     @Override
     public Config getConfig() throws GitException {
+        check();
         return nativeGit.createConfig();
     }
 
     @Override
     public void close() {
         //do not need to do anything
-    }
-
-    /**
-     * @return NativeGit for this connection
-     */
-    public NativeGit getNativeGit() {
-        return nativeGit;
     }
 
     /**
